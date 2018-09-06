@@ -50,10 +50,8 @@ let main argv =
         for y in 0..img.Height-1 do
             outputPixels.[x + y * img.Width] <- pw x y) |> ignore
 
-    let out_img = Image.LoadPixelData(Array.init outputPixels.Length 
-                                        (fun n -> Rgba32(outputPixels.[n])), img.Width, img.Height)
-
-    printfn "out_img's width is %d and height is %d" out_img.Width out_img.Height
+    let out_img = Image.LoadPixelData(outputPixels |> Array.map 
+                                        (fun n -> Rgba32(n)), img.Width, img.Height)
 
     out_img.Save(@"..\..\naive_output.jpg")
 
