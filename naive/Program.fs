@@ -32,6 +32,8 @@ let processWindow clampedArrayFunc windowSize x y =
 [<EntryPoint>]
 let main argv =
 
+    let windowSize = argv.[0] |> int
+
     Configuration.Default.MemoryAllocator <- ArrayPoolMemoryAllocator.CreateWithModeratePooling()
 
     use img = Image.Load(@"..\..\cute-puppy.jpg")
@@ -44,7 +46,7 @@ let main argv =
 
     let ac = accessClampedArrayWithDefault inputPixels img.Width 
                 img.Height (PixelFormats.NamedColors<Rgba32>.Black.ToVector4())
-    let pw = processWindow ac 3 // using default window size of 3 right now
+    let pw = processWindow ac windowSize // using default window size of 3 right now
 
     System.Threading.Tasks.Parallel.For(0, img.Width-1, fun x ->
         for y in 0..img.Height-1 do
