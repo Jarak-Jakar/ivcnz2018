@@ -6,6 +6,8 @@ open SixLabors.ImageSharp.PixelFormats
 open SixLabors.Memory
 open System.Numerics
 
+let timer = System.Diagnostics.Stopwatch()
+
 let accessClampedArrayWithDefault (arr: 'a[]) width height def x y =
     if x < 0 || x > width-1 || y < 0 || y > height-1 then
         def
@@ -36,27 +38,30 @@ let main argv =
 
     Configuration.Default.MemoryAllocator <- ArrayPoolMemoryAllocator.CreateWithModeratePooling()
 
-    use img = Image.Load(@"..\..\cute-puppy.jpg")
+    use img = Image.Load(@"..\..\big-fluffy.jpg")
 
-    let mutable out_img = img.Clone()
+    timer.Start()
 
     let inputPixels = img.GetPixelSpan().ToArray() |> Array.map (fun p -> p.ToVector4())
 
-    let mutable outputPixels = Array.zeroCreate inputPixels.Length
-
     let ac = accessClampedArrayWithDefault inputPixels img.Width 
                 img.Height (PixelFormats.NamedColors<Rgba32>.Black.ToVector4())
-    let pw = processWindow ac windowSize // using default window size of 3 right now
+    let pw = processWindow ac windowSize
 
-    System.Threading.Tasks.Parallel.For(0, img.Width-1, fun x ->
-        for y in 0..img.Height-1 do
-            outputPixels.[x + y * img.Width] <- pw x y) |> ignore
+    let outputPixels = Array.Parallel.map (fun i -> 
+                            let x = i % img.Width
+                            let y = i / img.Width
+                            pw x y |> Rgba32
+                        ) [|0..inputPixels.Length-1|]
 
-    let out_img = Image.LoadPixelData(outputPixels |> Array.map 
-                                        (fun n -> Rgba32(n)), img.Width, img.Height)
+    let out_img = Image.LoadPixelData(outputPixels, img.Width, img.Height)
+
+    timer.Stop()
 
     out_img.Save(@"..\..\naive_output.jpg")
 
     img.Dispose()
+
+    printfn "Process took %f seconds" (float timer.ElapsedMilliseconds / 1000.0)
 
     0 // return an integer exit code
