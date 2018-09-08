@@ -43,37 +43,6 @@ let arrayMedian arr =
     Array.Sort arr
     arr.[arr.Length / 2]
 
-let swap (a: 'a byref) (b: 'a byref) =
-    let tmp = a
-    a <-b
-    b <- tmp
-
-let sort3Elems (arr: Gpx[]) =
-    if arr.[0] > arr.[1] then swap &arr.[0] &arr.[1]
-    if arr.[1] > arr.[2] then swap &arr.[1] &arr.[2]
-    if arr.[0] > arr.[1] then swap &arr.[0] &arr.[2]
-
-let mergeGpxArrays (a: Gpx []) (b: Gpx []) (c: Gpx []) =
-    let mutable i = 0
-    let mutable j = 0
-    let mutable k = 0
-    let mutable res = Some(Byte.MinValue)
-    for _ in 0..4 do
-        if a.[i] < b.[j] then
-            if a.[i] < c.[k] then
-                res <- a.[i]
-                i <- i + 1
-            else
-                res <- c.[k]
-                i <- i + 1
-        elif b.[j] < c.[k] then
-            res <- b.[j]
-            j <- j + 1
-        else
-            res <- c.[k]
-            k <- k + 1
-    res.Value // Can throw an exception, which is desired behaviour here as there should always be a real pixel value in the median value
-
 let mergeGpxArraysTuple (a: Gpx [], b: Gpx [], c: Gpx []) =
     Array.append a b |> Array.append c |> Array.filter (fun g -> g.IsSome) |> arrayMedian |> fun g -> g.Value
 
@@ -101,23 +70,24 @@ let getNeighbours (neighbourhoods: Gpx[][]) width height i =
     (up, here, down)
 
 
-
 [<EntryPoint>]
 let main argv =
 
-    let img = Image.Load(@"D:\Users\jcoo092\Writing\2018\IVCNZ18\cute-puppy.jpg")
+    let img = Image.Load(@"..\..\big-fluffy.jpg")
     img.Mutate(fun x -> x.Grayscale() |> ignore)
+
+    let timer = System.Diagnostics.Stopwatch()
+
+    timer.Start()
 
     let intensities = img.GetPixelSpan().ToArray() |> Array.map (fun p -> p.R)  // In grayscale all of R, G, and B should be the same, so can just work with R
     let mv = move intensities img.Width img.Height
 
     let buildNeighbourArray i p =
-        let arr = Array.zeroCreate 4
+        let arr = Array.zeroCreate 3
         arr.[0] <- mv i West
         arr.[1] <- Some(p)
         arr.[2] <- mv i East
-        arr.[3] <- Some(Byte.MaxValue)
-        sort3Elems arr
         arr
 
     let neighbourhoods = Array.mapi buildNeighbourArray intensities
@@ -127,6 +97,10 @@ let main argv =
 
     let out_img = Image.LoadPixelData(finalPixels, img.Width, img.Height)
 
+    timer.Stop()
+
     out_img.Save(@"..\..\median_out.jpg")
+
+    printfn "%f" (float timer.ElapsedMilliseconds / 1000.0)
 
     0 // return an integer exit code
