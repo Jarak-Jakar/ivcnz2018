@@ -3,36 +3,16 @@
 open SixLabors.ImageSharp
 open SixLabors.ImageSharp.Advanced
 open SixLabors.ImageSharp.PixelFormats
-open SixLabors.ImageSharp.Formats.Jpeg
 open SixLabors.Memory
+open System.Numerics
 
-(* let zeroClamp width height x y =
-    let w = width - 1
-    let h = height - 1
-    if x < 0 || x > w || y < 0 || x > w then
-        (0,0)
-    else
-        (x,y) *)
+let timer = System.Diagnostics.Stopwatch()
 
 let accessClampedArrayWithDefault (arr: 'a[]) width height def x y =
     if x < 0 || x > width-1 || y < 0 || y > height-1 then
         def
     else
         arr.[x + width * y]
-
-(* let inline (+^) (a: PixelFormats.Rgba32) (b: PixelFormats.Rgba32): PixelFormats.Rgba32 =
-    let A = a.A + b.A
-    let R = a.R + b.R
-    let G = a.G + b.G
-    let B = a.B + b.G
-    Rgba32(R, G, B, A)
-
-let inline (/^) (px: PixelFormats.Rgba32) (divisor: float) =
-    let A = float px.A / divisor |> byte
-    let R = float px.R / divisor |> byte
-    let G = float px.G / divisor |> byte
-    let B = float px.B / divisor |> byte
-    Rgba32(R, G, B, A) *)
 
 let extractPixelParts (p: Rgba32) =
     let R = uint32 p.R
@@ -41,57 +21,47 @@ let extractPixelParts (p: Rgba32) =
     let A = uint32 p.A
     [|R; G; B; A|]
 
+let processWindow clampedArrayFunc windowSize x y =
+    let posBound = (windowSize - 1) / 2
+    let negBound = -posBound
+    let mutable p = clampedArrayFunc x y
+    for z in negBound..posBound do
+        for w in negBound..posBound do
+            let q = clampedArrayFunc (x + z) (y + w)
+            p <- Vector4.Add(p, q)
+    Vector4.Divide(p, (windowSize * windowSize |> float32))
+
 [<EntryPoint>]
 let main argv =
-    //printfn "Hello World from F#!"
+
+    let windowSize = argv.[0] |> int
 
     Configuration.Default.MemoryAllocator <- ArrayPoolMemoryAllocator.CreateWithModeratePooling()
 
-    use img = Image.Load(@"D:\Users\jcoo092\Writing\2018\IVCNZ18\cute-puppy.jpg")
+    use img = Image.Load(@"..\..\big-fluffy.jpg")
 
-    let mutable out_img = img.Clone()
+    timer.Start()
 
-    let pxs = img.GetPixelSpan().ToArray() |> Array.map extractPixelParts
+    let inputPixels = img.GetPixelSpan().ToArray() |> Array.map (fun p -> p.ToVector4())
 
-    let mutable (nps: uint32[][]) = Array.zeroCreate pxs.Length
+    let ac = accessClampedArrayWithDefault inputPixels img.Width
+                img.Height (PixelFormats.NamedColors<Rgba32>.Black.ToVector4())
+    let pw = processWindow ac windowSize
 
-    let ac = accessClampedArrayWithDefault pxs img.Width img.Height [|0u;0u;0u;0u|]
+    let outputPixels = Array.Parallel.map (fun i ->
+                            let x = i % img.Width
+                            let y = i / img.Width
+                            pw x y |> Rgba32
+                        ) [|0..inputPixels.Length-1|]
 
-    //for x in 0..img.Width-1 do
-    System.Threading.Tasks.Parallel.For(0, img.Width-1, fun x ->
-        for y in 0..img.Height-1 do
-            let p = ac x y
-            for z in -1..1 do
-                for w in -1..1 do
-                    let q = ac (x + z) (y + w)
-                    nps.[x + y * img.Width] <- Array.zip p q |> Array.map (fun (a,b) -> a + b)
-            nps.[x + y * img.Width] <- Array.map (fun i -> float i / 9.0 |> uint32 ) nps.[x + y * img.Width]) |> ignore
+    let out_img = Image.LoadPixelData(outputPixels, img.Width, img.Height)
 
-    let rpx = Array.collect (fun a -> Array.map byte a) nps
+    timer.Stop()
 
-    //printfn "Detected format is %A" (img.GetConfiguration())
+    out_img.Save(@"..\..\naive_output.jpg")
 
-    //let meta = img.MetaData
+    img.Dispose()
 
-    //let out_img = Image.Load<Rgba32>(img.GetConfiguration(), rpx, Formats.Jpeg.JpegDecoder())
-    let out_img = Image.Load<Rgba32>(img.GetConfiguration(), rpx)
-
-    printfn "out_img's width is %d and height is %d" out_img.Width out_img.Height
-
-    (* let zc = accessClampedArrayWithDefault pxs (Rgba32(0uy, 0uy, 0uy, 0uy))
-
-    for x in 0..img.Height-1 do
-        for y in 0..img.Width-1 do
-            let p = pxs.[x].[y]
-            for z in -1..1 do
-                for w in -1..1 do
-                    let q = zc (y + z) (x + w)
-                    nps.[x].[y] <- nps.[x].[y] +^ q
-            nps.[x].[y] <- nps.[x].[y] /^ 9.0
-            out_img.[y, x] <- nps.[x].[y] *)
-
-    //out_img.Save(@"D:\Users\jcoo092\Writing\2018\IVCNZ18\naive_output.jpg")
-
-
+    printfn "Process took %f seconds" (float timer.ElapsedMilliseconds / 1000.0)
 
     0 // return an integer exit code
