@@ -4,12 +4,11 @@ open System
 open SixLabors.ImageSharp
 open SixLabors.ImageSharp.Processing
 open SixLabors.ImageSharp.Advanced
+open SixLabors.ImageSharp.PixelFormats
 
-type gpx = ValueOption<byte>
+type Gpx = byte option
 
-let bbbb = Some(5)
-
-type Move = 
+type Move =
     | West
     | East
     | North
@@ -19,14 +18,14 @@ type Move =
     | Southwest
     | Southeast
 
-let tryGetGrayPixel (pixelSpan: byte[]) width height x y : gpx= 
+let tryGetGpx (pixelSpan: byte[]) width height x y : Gpx=
     if x < 0 || x > width-1 || y < 0 || y > height-1 then
-        ValueNone
+        None
     else
-        ValueSome(pixelSpan.[x + width * y])
+        Some(pixelSpan.[x + width * y])
 
-let move pixelSpan width height idx direction = 
-    let ggp = tryGetGrayPixel pixelSpan width height
+let move pixelSpan width height idx direction =
+    let tgg = tryGetGpx pixelSpan width height
     let x = idx % width
     let y = idx / width
     let (a,b) = match direction with
@@ -38,28 +37,27 @@ let move pixelSpan width height idx direction =
                 | Northeast -> (x + 1, y - 1)
                 | Southwest -> (x - 1, y + 1)
                 | Southeast -> (x + 1, y + 1)
-    ggp a b
+    tgg a b
 
-let arrayMedian arr = 
+let arrayMedian arr =
     Array.Sort arr
     arr.[arr.Length / 2]
 
-let swap (a: 'a byref) (b: 'a byref) = 
+let swap (a: 'a byref) (b: 'a byref) =
     let tmp = a
     a <-b
     b <- tmp
 
-let sort3Elems (arr: gpx[]) = 
+let sort3Elems (arr: Gpx[]) =
     if arr.[0] > arr.[1] then swap &arr.[0] &arr.[1]
     if arr.[1] > arr.[2] then swap &arr.[1] &arr.[2]
     if arr.[0] > arr.[1] then swap &arr.[0] &arr.[2]
 
-
-let mergeByteArrays (a: byte[]) (b: byte[]) (c: byte[]) = 
+let mergeGpxArrays (a: Gpx []) (b: Gpx []) (c: Gpx []) =
     let mutable i = 0
     let mutable j = 0
     let mutable k = 0
-    let mutable res = Byte.MinValue
+    let mutable res = Some(Byte.MinValue)
     for _ in 0..4 do
         if a.[i] < b.[j] then
             if a.[i] < c.[k] then
@@ -74,29 +72,61 @@ let mergeByteArrays (a: byte[]) (b: byte[]) (c: byte[]) =
         else
             res <- c.[k]
             k <- k + 1
-    res
+    res.Value // Can throw an exception, which is desired behaviour here as there should always be a real pixel value in the median value
+
+let mergeGpxArraysTuple (a: Gpx [], b: Gpx [], c: Gpx []) =
+    Array.append a b |> Array.append c |> Array.filter (fun g -> g.IsSome) |> arrayMedian |> fun g -> g.Value
+
+let inline createRgba32Pixel r =
+    Rgba32(r, r, r, Byte.MaxValue)
+
+let getNeighbours (neighbourhoods: Gpx[][]) width height i =
+    let x = i % width
+    let y = i / width
+    let yLessOne = (y - 1) * width + x
+    let yPlusOne = (y + 1) * width + x
+
+    let nones = Array.zeroCreate 4
+    nones.[3] <- Some(Byte.MaxValue)
+
+    let here = neighbourhoods.[x + y * width]
+    let up = if yLessOne < 0 then
+                nones
+             else
+                neighbourhoods.[yLessOne]
+    let down = if yPlusOne > (width * height) - 1 then
+                nones
+               else
+                neighbourhoods.[yPlusOne]
+    (up, here, down)
+
+
 
 [<EntryPoint>]
 let main argv =
 
-    let img = Image.Load(@"..\..\cute-puppy.jpg")
+    let img = Image.Load(@"D:\Users\jcoo092\Writing\2018\IVCNZ18\cute-puppy.jpg")
     img.Mutate(fun x -> x.Grayscale() |> ignore)
 
-    //printfn "%A" ((Array.skip 100 (img.GetPixelSpan().ToArray()) |> Array.take 20) |> Array.map (fun p -> p.R))
-
-    let intensities = img.GetPixelSpan().ToArray() |> Array.map (fun p -> p.R)
-    //let ggp = getGrayPixelOption intensities img.Width img.Height
+    let intensities = img.GetPixelSpan().ToArray() |> Array.map (fun p -> p.R)  // In grayscale all of R, G, and B should be the same, so can just work with R
     let mv = move intensities img.Width img.Height
 
-    let buildNeighbourArray i p = 
+    let buildNeighbourArray i p =
         let arr = Array.zeroCreate 4
         arr.[0] <- mv i West
-        arr.[1] <- ValueSome(p)
+        arr.[1] <- Some(p)
         arr.[2] <- mv i East
-        arr.[3] <- ValueSome(Byte.MaxValue)
+        arr.[3] <- Some(Byte.MaxValue)
         sort3Elems arr
+        arr
 
     let neighbourhoods = Array.mapi buildNeighbourArray intensities
+    let gn = getNeighbours neighbourhoods img.Width img.Height
 
-    //printfn "Hello World from F#!"
+    let finalPixels = [|0..neighbourhoods.Length-1|] |> Array.map (gn >> mergeGpxArraysTuple >> createRgba32Pixel)
+
+    let out_img = Image.LoadPixelData(finalPixels, img.Width, img.Height)
+
+    out_img.Save(@"..\..\median_out.jpg")
+
     0 // return an integer exit code

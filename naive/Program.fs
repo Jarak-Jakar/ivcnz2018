@@ -14,12 +14,12 @@ let accessClampedArrayWithDefault (arr: 'a[]) width height def x y =
     else
         arr.[x + width * y]
 
-let extractPixelParts (p: Rgba32) =
+(* let extractPixelParts (p: Rgba32) =
     let R = uint32 p.R
     let G = uint32 p.G
     let B = uint32 p.B
     let A = uint32 p.A
-    [|R; G; B; A|]
+    [|R; G; B; A|] *)
 
 let processWindow clampedArrayFunc windowSize x y =
     let posBound = (windowSize - 1) / 2
