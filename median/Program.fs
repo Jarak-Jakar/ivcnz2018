@@ -44,19 +44,18 @@ let arrayMedian arr =
     arr.[arr.Length / 2]
 
 let mergeGpxArraysTuple (a: Gpx [], b: Gpx [], c: Gpx []) =
-    Array.append a b |> Array.append c |> Array.filter (fun g -> g.IsSome) |> arrayMedian |> fun g -> g.Value
+    Array.append a b |> Array.append c |> Array.choose id |> arrayMedian
 
 let inline createRgba32Pixel r =
     Rgba32(r, r, r, Byte.MaxValue)
 
-let getNeighbours (neighbourhoods: Gpx[][]) width height i =
+let getNeighbours width height (neighbourhoods: Gpx[][]) i =
     let x = i % width
     let y = i / width
     let yLessOne = (y - 1) * width + x
     let yPlusOne = (y + 1) * width + x
 
-    let nones = Array.zeroCreate 4
-    nones.[3] <- Some(Byte.MaxValue)
+    let nones = Array.zeroCreate 3
 
     let here = neighbourhoods.[x + y * width]
     let up = if yLessOne < 0 then
@@ -90,10 +89,9 @@ let main argv =
         arr.[2] <- mv i East
         arr
 
-    let neighbourhoods = Array.mapi buildNeighbourArray intensities
-    let gn = getNeighbours neighbourhoods img.Width img.Height
+    let gn = getNeighbours img.Width img.Height <| Array.Parallel.mapi buildNeighbourArray intensities
 
-    let finalPixels = [|0..neighbourhoods.Length-1|] |> Array.map (gn >> mergeGpxArraysTuple >> createRgba32Pixel)
+    let finalPixels = [|0..(img.Width * img.Height)-1|] |> Array.Parallel.map (gn >> mergeGpxArraysTuple >> createRgba32Pixel)
 
     let out_img = Image.LoadPixelData(finalPixels, img.Width, img.Height)
 

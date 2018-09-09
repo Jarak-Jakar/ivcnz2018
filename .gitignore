@@ -19,6 +19,8 @@ bin
 !.vscode/launch.json
 !.vscode/extensions.json
 
+*/.vs/*
+
 ### Windows ###
 # Windows thumbnail cache files
 Thumbs.db
