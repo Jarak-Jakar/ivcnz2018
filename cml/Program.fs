@@ -23,6 +23,9 @@ let computeCoords width index =
         index / width
     )
 
+let computeIndex width x y =
+    x + y * width
+
 type Direction =
     | West
     | East
@@ -57,6 +60,20 @@ let createPixel width index intensity =
     let x, y = computeCoords width index
     {c = Ch (); x = x; y = y; i = intensity}
 
+//val getNeighbourPix: Pix<'a> -> Direction -> Job<'a>
+
+let getNeighbourPixelIntensity width (pixelsArray: Pix<'a> []) pixel direction = 
+    let displaceX, displaceY = getDisplacement pixel.x pixel.y direction
+    let neighbourIdx = computeIndex width displaceX displaceY
+    job {
+        let intensity = Ch.take pixelsArray.[neighbourIdx].c
+        return! intensity
+    }
+
+
+let runPixel pixel = 
+    run getNeighbourPixelIntensity width pixelsArray pixel direction
+
 [<EntryPoint>]
 let main argv =
 
@@ -68,6 +85,7 @@ let main argv =
 
     let makePixels = createPixel 120
     let intensities = Array.init (120 * 116) byte |> Array.mapi makePixels
+    
 
 
 
