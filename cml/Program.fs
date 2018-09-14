@@ -8,6 +8,7 @@ open Hopac.Core
 open Hopac.Extensions
 open SixLabors.ImageSharp.PixelFormats
 open Hopac
+open Hopac.Core
 
 (* type Pix<'a> = {
     pCh: Ch<'a>
@@ -84,33 +85,66 @@ let giveIntensity pix =
     printfn "pix %d %d giving intensity %A" pix.x pix.y pix.i
     Ch.give pix.c pix.i
 
-let lookupNeighbour (pixels: Pix<'a>[]) neighbourIdx =
-    if neighbourIdx < 0 || neighbourIdx >= pixels.Length then
-        Alt.always None
+let getIntensity (pixels: Pix<'a> []) pix neighbourIdx neighbourNum =
+    //printfn "pix %d %d taking an intensity from neighbourNum %d, at index %d" pix.x pix.y neighbourNum neighbourIdx
+    (* if neighbourIdx < 0 || neighbourIdx >= pixels.Length then
+        Alt.always None |> Alt.afterJob (fun x -> IVar.fill pix.n.[neighbourNum] x)
     else
-        pixels.[neighbourIdx].c
+        Ch.take pixels.[neighbourIdx].c |> Alt.afterJob (fun x -> IVar.fill pix.n.[neighbourNum] x) *)
+    let alternative =
+        if neighbourIdx < 0 || neighbourIdx >= pixels.Length then
+            Alt.once None
+        else
+            Ch.take pixels.[neighbourIdx].c
+    printfn "Alternative was %A" alternative
+    //alternative
+    //|> Alt.afterJob (fun x -> //printfn "the chosen alternative is %A" x;
+    //                            if not (IVar.Now.isFull pix.n.[neighbourNum]) then IVar.fill pix.n.[neighbourNum] x else Job.unit ())
+    alternative |> Alt.afterJob (fun x -> IVar.fill pix.n.[neighbourNum] x)
 
-let getIntensity pix neighbourChan neighbourNum =
-    printfn "pix %d %d taking an intensity from neighbourNum %d" pix.x pix.y neighbourNum
-
-    Ch.take neighbourChan |> Alt.afterJob (fun x -> IVar.fill pix.n.[neighbourNum] x)
 
 let getAllIntensities width (pixels: Pix<'a> []) pix =
     Array.mapi (fun i d ->
                     let displaceX, displaceY = getDisplacement pix.x pix.y d
                     let neighbourIdx = computeIndex width displaceX displaceY
-                    printfn "i = %d, neighbourIdx = %d" i neighbourIdx
-                    getIntensity pix pixels.[neighbourIdx] i)
+                    //printfn "i = %d, neighbourIdx = %d" i neighbourIdx
+                    getIntensity pixels pix neighbourIdx  i)
                 directions
 
 let sendMessages width pixels pix =
     let choices = Array.append (getAllIntensities width pixels pix) [|giveIntensity pix|]
-    Job.server << Job.iterate () <| fun () ->
+    //Job.server << Job.iterate () <| fun () ->
+    Job.iterateServer () <| fun () ->
                                     Alt.choose choices
     |> start
 
+(* let sendMessages width pixels pix =
+    let takeIntensitiesChoices = (getAllIntensities width pixels pix)
+    let mutable choices = Array.append takeIntensitiesChoices [|giveIntensity pix|]
+    //Job.server << Job.iterate () <| fun () ->
+    Job.iterateServer () <| fun () ->
+                                    let alternative = Alt.choose choices
+                                    printfn "chosen alternative was %A" alternative
+                                    choices <- Array.except [|alternative|] choices
+                                    alternative
+
+    |> start *)
+
+(* let runPix width pixels pixel = job {
+    let takeIntensitiesChoices = Array.toList (getAllIntensities width pixels pixel)
+    let rec rp choices = job {
+        let allChoices = (giveIntensity pixel) :: choices
+        do! (Alt.choose allChoices |> Alt.afterJob (fun c -> rp (List.except [c] allChoices)))
+        return! rp choices
+    }
+
+    do! rp takeIntensitiesChoices
+} *)
+
+
 let pullOutWindow pix = job {
-    Array.iteri (fun i v -> printfn "IVar %d is full? %A" i (IVar.Now.isFull v)) pix.n
+    //Array.iteri (fun i v -> printfn "IVar %d is full? %A" i (IVar.Now.isFull v)) pix.n
+    Array.iteri (fun i v -> if IVar.Now.isFull v then printfn "IVar %d contains %A" i (IVar.read v |> run)) pix.n
     //Array.iteri (fun i v -> printfn "IVar %d contains %A" i (IVar.Now.get v)) pix.n
     return Array.map (fun x -> IVar.read x |> Alt.toAsync) pix.n |> Async.Parallel |> Async.RunSynchronously
     //Array.map (fun x -> IVar.read x |> run) pix.n
@@ -120,6 +154,7 @@ let pullOutWindow pix = job {
 let arrayMedian arr = job {
     let arr2 = Array.choose id arr
     Array.Sort arr2
+    printfn "arr2.Length = %d" arr2.Length
     return arr2.[arr2.Length / 2]
 }
 
@@ -129,8 +164,6 @@ let arrayMedian arr = job {
 
 let findMedians pixArray =
     Array.map (fun x -> pullOutWindow x |> Job.bind arrayMedian |> run) pixArray
-
-//let fms (fmarr: Job<'a>[]) = Array.Parallel.map run fmarr
 
 let makeRgba32 i =
     Rgba32(i, i, i, 255uy)
