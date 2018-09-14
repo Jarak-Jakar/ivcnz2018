@@ -159,9 +159,6 @@ let findMedians pixArray =
 let makeRgba32 i =
     Rgba32(i, i, i, 255uy)
 
-//let runPixel pixel =
-  //  run getNeighbourPixelIntensity width pixelsArray pixel direction
-
 [<EntryPoint>]
 let main argv =
 
@@ -175,44 +172,6 @@ let main argv =
 
     let makePixels = createPixel 5 3 //img.Width
     let intensities = Array.init (5 * 5) byte |> Array.mapi makePixels // temporary only, to give me pixel representations
-
-    let sm = sendMessages 5 intensities
-    Array.map sm intensities |> ignore
-
-    let res = findMedians intensities |> Array.Parallel.map makeRgba32 // this part pulls out the results
-
-    printfn "%A" res
-
-    (* let a = intensities.[0].n.[0]
-    let b = MVar.fill a 5uy
-    let c = Alt.always 5uy
-
-
-    let d = Ch.give intensities.[0].c intensities.[0].i
-    let e = Ch.take intensities.[1].c |> Alt.afterJob (fun x -> MVar.fill intensities.[0].n.[0] x) //|> Alt.afterFun (fun _ -> Alt.zero ())
-    let g = Alt.once e
-
-    let p = job {
-        return! Ch.take intensities.[1].c |> Alt.afterJob (fun x -> MVar.fill intensities.[0].n.[0] x)
-    }
-
-    let q = Alt.once p
-
-    let i = intensities.[0].n
-    //let j = Array.map (fun x -> Alt.toAsync x) i |> Async.Parallel |> Async.RunSynchronously
-    let k = Array.map (fun x -> MVar.read x |> Alt.toAsync) i |> Async.Parallel |> Async.RunSynchronously
-
-
-    Alt.choose [d; e; g] |> ignore *)
-
-  (*   let disps = Seq.map (getDisplacement 0 0) directions
-                |> Seq.collect (fun (x,y) -> Seq.map (getDisplacement x y) directions)
-                |> Seq.distinct
-                |> Seq.collect (fun (x,y) -> Seq.map (getDisplacement x y) directions)
-                |> Seq.distinct
-
-    printfn "%A %d" disps (Seq.length disps) *)
-
 
 
 
