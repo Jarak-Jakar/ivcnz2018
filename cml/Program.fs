@@ -1,18 +1,9 @@
 ﻿// Learn more about F# at http://fsharp.org
 
 open System
-open SixLabors.ImageSharp
-open SixLabors.ImageSharp.Processing
 open Hopac
-open Hopac.Core
 open Hopac.Extensions
 open SixLabors.ImageSharp.PixelFormats
-open Hopac
-open Hopac.Core
-
-(* type Pix<'a> = {
-    pCh: Ch<'a>
-} *)
 
 type Pix<'a> = {
     c: Ch<Option<'a>>
@@ -96,7 +87,7 @@ let getIntensity (pixels: Pix<'a> []) pix neighbourIdx neighbourNum =
             Alt.once None
         else
             Ch.take pixels.[neighbourIdx].c
-    printfn "Alternative was %A" alternative
+    //printfn "Alternative was %A" alternative
     //alternative
     //|> Alt.afterJob (fun x -> //printfn "the chosen alternative is %A" x;
     //                            if not (IVar.Now.isFull pix.n.[neighbourNum]) then IVar.fill pix.n.[neighbourNum] x else Job.unit ())
