@@ -5,6 +5,9 @@ open Hopac
 open Hopac.Extensions
 open Hopac.Infixes
 open SixLabors.ImageSharp.PixelFormats
+open SixLabors.ImageSharp
+open SixLabors.ImageSharp.Processing
+open SixLabors.ImageSharp.Advanced
 
 type 'a Pix = {
     intensity: 'a
@@ -115,21 +118,19 @@ let storeMedians (arr: Rgba32 []) oachan = job {
 
 [<EntryPoint>]
 let main argv =
+    let filename = argv.[0]
 
-    (* use img = Image.Load(@"D:\Users\jcoo092\Writing\2018\IVCNZ18\cute-puppy.jpg")
+    use img = Image.Load(@"..\..\Images\Inputs\" + filename)
 
     img.Mutate(fun x -> x.Grayscale() |> ignore)
 
-    img.Save(@"D:\Users\jcoo092\Writing\2018\IVCNZ18\sample_output.jpg") *)
-
-    let imageWidth = 5
-    let imageHeight = 5
+    let imageWidth = img.Width
+    let imageHeight = img.Height
     let pixelCount = imageWidth * imageHeight
-    let windowSize = 3
-    let intensities = Array.init pixelCount byte
+    let intensities = img.GetPixelSpan().ToArray() |> Array.Parallel.map (fun p -> p.R)
     let fc = findCoords imageWidth
     let fi = findIndex imageWidth
-    let barrier = Hopac.Latch (pixelCount)
+    let barrier = Hopac.Latch pixelCount
     let outputArray = Array.zeroCreate pixelCount
     let oachan = Ch ()
     let pixels = Array.mapi (fun i x -> {intensity = x; index = i; neighbours = List.empty; chan = Ch ()}) intensities
@@ -139,8 +140,10 @@ let main argv =
 
     Job.foreverServer (storeMedians outputArray oachan) |> run
 
-    job {do! (Latch.await barrier |> Alt.afterFun (fun _ -> printfn "Latch has been released apparently"))} |> run
+    job {do! (Latch.await barrier)} |> run
 
-    printfn "%A" outputArray
+    let out_img = Image.LoadPixelData(outputArray, imageWidth, imageHeight)
+
+    out_img.Save(@"..\..\Images\Outputs\cml_median_" + System.IO.Path.GetFileNameWithoutExtension(filename) + ".png")
 
     0 // return an integer exit code
