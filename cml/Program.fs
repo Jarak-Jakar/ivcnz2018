@@ -128,9 +128,13 @@ let main argv =
 
     let timer = System.Diagnostics.Stopwatch ()
 
-    timer.Start ()
+    //timer.Start ()
 
     for _ in 1..10 do
+
+        System.GC.Collect()
+
+        timer.Start ()
 
         let imageWidth = img.Width
         let imageHeight = img.Height
@@ -149,12 +153,12 @@ let main argv =
 
         out_img <- Image.LoadPixelData(outputArray, imageWidth, imageHeight)
 
-    timer.Stop ()
+        timer.Stop ()
 
     out_img.Save(@"..\..\Images\Outputs\cml_median_" + System.IO.Path.GetFileNameWithoutExtension(filename) + ".png")
 
-    let totalTimeTaken = float timer.ElapsedMilliseconds
-    printfn "Total time was %f" (totalTimeTaken / 1000.0)
-    printfn "Average time was %f" (totalTimeTaken / 1000.0 / 10.0)
+    let totalTimeTaken = timer.Elapsed.TotalSeconds
+    printfn "Total time was %f" totalTimeTaken
+    printfn "Average time was %f" (totalTimeTaken / 10.0)
 
     0 // return an integer exit code
