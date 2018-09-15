@@ -6,6 +6,8 @@ open Hopac.Extensions
 open Hopac.Infixes
 open SixLabors.ImageSharp.PixelFormats
 open Hopac
+open Hopac
+open Hopac
 
 type 'a Pix = {
     intensity: 'a
@@ -56,16 +58,23 @@ let makeNeighboursIndexList pix coordFinder indexFinder =
     |> Array.toList
 
 let giveIntensity pix =
+    printfn "giving by pix %d" pix.index
     (pix.chan *<- Some(pix.intensity))
         ^->. Give
     (* pix.chan *<- Some(pix.intensity)
     |> Alt.afterFun (fun _ -> Give) *)
 
+let rec loopGiving pix : Void Job = job {
+    do! (pix.chan *<- Some(pix.intensity))
+    return! loopGiving pix
+}
+
 let takeIntensity neighbour =
     (* Ch.take neighbour.chan
         ^-> (fun i -> Take (i neighbour.index)) *)
+    printfn "taking from pix %d" neighbour.index
     Ch.take neighbour.chan
-    |> Alt.afterFun (fun i -> Take (i, neighbour.index))
+        ^-> (fun i -> Take (i, neighbour.index))
 
 
 let findArrayMedian arr =
@@ -80,23 +89,40 @@ let buildAlts (pixels: 'a Pix []) pix neighbours =
     (giveIntensity pix) :: takeAlts
 
 
-let runPixel coordFinder indexFinder pixels latch pix =
+let runPixel coordFinder indexFinder pixels latch pix = job {
     // setup goes here
     let neighboursList = makeNeighboursIndexList pix coordFinder indexFinder
     let ba = buildAlts pixels pix
-    let rec run p neighbours = job {
-        let alts = ba neighbours
+    let rec runpix neighbours p : Void Job = job {
+        (* let alts = ba neighbours
         let! res = Alt.choose alts
         match res with
         | Give ->
             return! run p neighbours
         | Take (n,i) ->
             let newNeighbours = List.except [i] neighbours
-            return! run {p with neighbours = n :: p.neighbours} newNeighbours
+            return! run {p with neighbours = n :: p.neighbours} newNeighbours *)
+
+        if List.isEmpty neighbours then
+            //let median = List.choose id p.neighbours |> Array.ofList |> findArrayMedian
+            // send median somewhere
+            do! Latch.decrement latch
+            return! loopGiving p
+            //return! (giveIntensity pix)
+        else
+            let alts = ba neighbours
+            let! res = Alt.choose alts
+            match res with
+            | Give ->
+                return! runpix neighbours p
+            | Take (n,i) ->
+                let newNeighbours = List.except [i] neighbours
+                return! runpix newNeighbours {p with neighbours = n :: p.neighbours}
 
         //return! run newNeighbours
     }
-    Job.iterateServer (run pix neighboursList)
+    do! Job.server (runpix neighboursList pix)
+}
 
 [<EntryPoint>]
 let main argv =
@@ -115,6 +141,17 @@ let main argv =
     let fc = findCoords imageWidth
     let fi = findIndex imageWidth
     let barrier = Hopac.Latch pixelCount
+    let pixels = Array.mapi (fun i x -> {intensity = x; index = i; neighbours = List.empty; chan = Ch ()}) intensities
+    let runpix = runPixel fc fi pixels barrier
+
+    //let allJobs = Array.map runpix pixels
+    //Array.iter (fun j -> Job.start j |> ignore) allJobs
+
+    Array.map runpix pixels |> Job.conIgnore |> run
+
+    Job.start (job {do! Latch.await barrier}) |> ignore
+
+    printfn "Finished waiting?"
 
     //printfn "Hello World from F#!"
     0 // return an integer exit code
