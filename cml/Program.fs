@@ -4,6 +4,7 @@ open System
 open Hopac
 open Hopac.Extensions
 open Hopac.Infixes
+open SixLabors.ImageSharp.PixelFormats
 
 type 'a Pix = {
     intensity: 'a
@@ -80,17 +81,17 @@ let buildAlts (pixels: 'a Pix []) pix neighbours =
     (giveIntensity pix) :: takeAlts
 
 
-let runPixel coordFinder indexFinder pixels latch pix = job {
+let runPixel coordFinder indexFinder pixels latch outputchan pix = job {
     let neighboursList = makeNeighboursIndexList pix coordFinder indexFinder
     let ba = buildAlts pixels pix
     let rec runpix neighbours p = job {
 
         if List.isEmpty neighbours then
             let median = List.choose id p.neighbours |> Array.ofList |> findArrayMedian
-            // send median somewhere
+            do! outputchan *<- (p.index, median)
             do! Latch.decrement latch
             return! (loopGiving p 0)
-            //return ()
+
         else
             let alts = ba neighbours
             let! res = Alt.choose alts
@@ -103,6 +104,13 @@ let runPixel coordFinder indexFinder pixels latch pix = job {
     }
     do! Job.start (runpix neighboursList pix)
     return ()
+}
+
+let makeRgba32 intensity = Rgba32(intensity, intensity, intensity, 255uy)
+
+let storeMedians (arr: Rgba32 []) oachan = job {
+    let! (index, median) = Ch.take oachan
+    arr.[index] <- makeRgba32 median
 }
 
 [<EntryPoint>]
@@ -122,11 +130,17 @@ let main argv =
     let fc = findCoords imageWidth
     let fi = findIndex imageWidth
     let barrier = Hopac.Latch (pixelCount)
+    let outputArray = Array.zeroCreate pixelCount
+    let oachan = Ch ()
     let pixels = Array.mapi (fun i x -> {intensity = x; index = i; neighbours = List.empty; chan = Ch ()}) intensities
-    let runpix = runPixel fc fi pixels barrier
+    let runpix = runPixel fc fi pixels barrier oachan
 
     Array.iter (fun p -> run (Job.start (runpix p))) pixels
 
+    Job.foreverServer (storeMedians outputArray oachan) |> run
+
     job {do! (Latch.await barrier |> Alt.afterFun (fun _ -> printfn "Latch has been released apparently"))} |> run
+
+    printfn "%A" outputArray
 
     0 // return an integer exit code
