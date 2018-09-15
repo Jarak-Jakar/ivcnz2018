@@ -4,10 +4,6 @@ open System
 open Hopac
 open Hopac.Extensions
 open Hopac.Infixes
-open SixLabors.ImageSharp.PixelFormats
-open Hopac
-open Hopac
-open Hopac
 
 type 'a Pix = {
     intensity: 'a
@@ -58,30 +54,19 @@ let makeNeighboursIndexList pix coordFinder indexFinder =
     |> Array.toList
 
 let giveIntensity pix =
-    //printfn "giving by pix %d" pix.index
     (pix.chan *<- Some(pix.intensity))
         ^->. Give
-    (* pix.chan *<- Some(pix.intensity)
-    |> Alt.afterFun (fun _ -> Give) *)
 
 let rec loopGiving pix count =
-    //printfn "started loopGiving for pix %d" pix.index
     job {
-        printfn "Run #%d of loopGiving for pix %d" count pix.index
         do! (pix.chan *<- Some(pix.intensity))
         return! loopGiving pix (count + 1)
     }
 
 let takeIntensity (pixels: 'a Pix []) neighbourIndex =
-    (* Ch.take neighbour.chan
-        ^-> (fun i -> Take (i neighbour.index)) *)
-    //printfn "taking from pix %d" neighbour.index
-    (* Ch.take pixels.[neighbourIndex].chan
-        ^-> (fun i -> Take (i, neighbourIndex)) *)
     if neighbourIndex < 0 || neighbourIndex >= pixels.Length then
         Alt.once (Take(None, neighbourIndex))
     else
-        //printfn "taking from pix %d" neighbourIndex
         Ch.take pixels.[neighbourIndex].chan
             ^-> (fun i -> Take (i, neighbourIndex))
 
@@ -91,10 +76,7 @@ let findArrayMedian arr =
     arr.[arr.Length / 2]
 
 let buildAlts (pixels: 'a Pix []) pix neighbours =
-    (* let neighbourPixels = List.map (fun n -> pixels.[n]) neighbours
-    let takeAlts = List.map takeIntensity neighbourPixels *)
     let takeAlts = List.map (takeIntensity pixels) neighbours
-                        //|> List.map (takeIntensity)
     (giveIntensity pix) :: takeAlts
 
 
@@ -104,10 +86,9 @@ let runPixel coordFinder indexFinder pixels latch pix = job {
     let rec runpix neighbours p = job {
 
         if List.isEmpty neighbours then
-            //let median = List.choose id p.neighbours |> Array.ofList |> findArrayMedian
+            let median = List.choose id p.neighbours |> Array.ofList |> findArrayMedian
             // send median somewhere
             do! Latch.decrement latch
-            //printfn "Just decremented the latch in %d" p.index
             return! (loopGiving p 0)
             //return ()
         else
@@ -148,9 +129,4 @@ let main argv =
 
     job {do! (Latch.await barrier |> Alt.afterFun (fun _ -> printfn "Latch has been released apparently"))} |> run
 
-    //IVar.read
-
-    //printfn "Finished waiting?"
-
-    //printfn "Hello World from F#!"
     0 // return an integer exit code
