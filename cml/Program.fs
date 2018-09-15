@@ -83,15 +83,17 @@ let buildAlts (pixels: 'a Pix []) pix neighbours =
     let takeAlts = List.map (takeIntensity pixels) neighbours
     (giveIntensity pix) :: takeAlts
 
+let makeRgba32 intensity = Rgba32(intensity, intensity, intensity, 255uy)
 
-let runPixel coordFinder indexFinder pixels latch outputchan pix = job {
+
+let runPixel coordFinder indexFinder pixels latch (outputArray: Rgba32 []) pix = job {
     let neighboursList = makeNeighboursIndexList pix coordFinder indexFinder
     let ba = buildAlts pixels pix
     let rec runpix neighbours p = job {
 
         if List.isEmpty neighbours then
             let median = List.choose id p.neighbours |> Array.ofList |> findArrayMedian
-            do! outputchan *<- (p.index, median)
+            outputArray.[p.index] <- makeRgba32 median
             do! Latch.decrement latch
             return! (loopGiving p 0)
 
@@ -108,8 +110,6 @@ let runPixel coordFinder indexFinder pixels latch outputchan pix = job {
     do! Job.start (runpix neighboursList pix)
     return ()
 }
-
-let makeRgba32 intensity = Rgba32(intensity, intensity, intensity, 255uy)
 
 let storeMedians (arr: Rgba32 []) oachan = job {
     let! (index, median) = Ch.take oachan
@@ -132,13 +132,10 @@ let main argv =
     let fi = findIndex imageWidth
     let barrier = Hopac.Latch pixelCount
     let outputArray = Array.zeroCreate pixelCount
-    let oachan = Ch ()
     let pixels = Array.mapi (fun i x -> {intensity = x; index = i; neighbours = List.empty; chan = Ch ()}) intensities
-    let runpix = runPixel fc fi pixels barrier oachan
+    let runpix = runPixel fc fi pixels barrier outputArray
 
     Array.iter (fun p -> run (Job.start (runpix p))) pixels
-
-    Job.foreverServer (storeMedians outputArray oachan) |> run
 
     job {do! (Latch.await barrier)} |> run
 
