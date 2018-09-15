@@ -58,23 +58,32 @@ let makeNeighboursIndexList pix coordFinder indexFinder =
     |> Array.toList
 
 let giveIntensity pix =
-    printfn "giving by pix %d" pix.index
+    //printfn "giving by pix %d" pix.index
     (pix.chan *<- Some(pix.intensity))
         ^->. Give
     (* pix.chan *<- Some(pix.intensity)
     |> Alt.afterFun (fun _ -> Give) *)
 
-let rec loopGiving pix : Void Job = job {
-    do! (pix.chan *<- Some(pix.intensity))
-    return! loopGiving pix
-}
+let rec loopGiving pix count =
+    //printfn "started loopGiving for pix %d" pix.index
+    job {
+        printfn "Run #%d of loopGiving for pix %d" count pix.index
+        do! (pix.chan *<- Some(pix.intensity))
+        return! loopGiving pix (count + 1)
+    }
 
-let takeIntensity neighbour =
+let takeIntensity (pixels: 'a Pix []) neighbourIndex =
     (* Ch.take neighbour.chan
         ^-> (fun i -> Take (i neighbour.index)) *)
-    printfn "taking from pix %d" neighbour.index
-    Ch.take neighbour.chan
-        ^-> (fun i -> Take (i, neighbour.index))
+    //printfn "taking from pix %d" neighbour.index
+    (* Ch.take pixels.[neighbourIndex].chan
+        ^-> (fun i -> Take (i, neighbourIndex)) *)
+    if neighbourIndex < 0 || neighbourIndex >= pixels.Length then
+        Alt.once (Take(None, neighbourIndex))
+    else
+        //printfn "taking from pix %d" neighbourIndex
+        Ch.take pixels.[neighbourIndex].chan
+            ^-> (fun i -> Take (i, neighbourIndex))
 
 
 let findArrayMedian arr =
@@ -84,31 +93,23 @@ let findArrayMedian arr =
 let buildAlts (pixels: 'a Pix []) pix neighbours =
     (* let neighbourPixels = List.map (fun n -> pixels.[n]) neighbours
     let takeAlts = List.map takeIntensity neighbourPixels *)
-    let takeAlts = List.map (fun n -> pixels.[n]) neighbours
-                        |> List.map takeIntensity
+    let takeAlts = List.map (takeIntensity pixels) neighbours
+                        //|> List.map (takeIntensity)
     (giveIntensity pix) :: takeAlts
 
 
 let runPixel coordFinder indexFinder pixels latch pix = job {
-    // setup goes here
     let neighboursList = makeNeighboursIndexList pix coordFinder indexFinder
     let ba = buildAlts pixels pix
-    let rec runpix neighbours p : Void Job = job {
-        (* let alts = ba neighbours
-        let! res = Alt.choose alts
-        match res with
-        | Give ->
-            return! run p neighbours
-        | Take (n,i) ->
-            let newNeighbours = List.except [i] neighbours
-            return! run {p with neighbours = n :: p.neighbours} newNeighbours *)
+    let rec runpix neighbours p = job {
 
         if List.isEmpty neighbours then
             //let median = List.choose id p.neighbours |> Array.ofList |> findArrayMedian
             // send median somewhere
             do! Latch.decrement latch
-            return! loopGiving p
-            //return! (giveIntensity pix)
+            //printfn "Just decremented the latch in %d" p.index
+            return! (loopGiving p 0)
+            //return ()
         else
             let alts = ba neighbours
             let! res = Alt.choose alts
@@ -118,10 +119,9 @@ let runPixel coordFinder indexFinder pixels latch pix = job {
             | Take (n,i) ->
                 let newNeighbours = List.except [i] neighbours
                 return! runpix newNeighbours {p with neighbours = n :: p.neighbours}
-
-        //return! run newNeighbours
     }
-    do! Job.server (runpix neighboursList pix)
+    do! Job.start (runpix neighboursList pix)
+    return ()
 }
 
 [<EntryPoint>]
@@ -140,18 +140,17 @@ let main argv =
     let intensities = Array.init pixelCount byte
     let fc = findCoords imageWidth
     let fi = findIndex imageWidth
-    let barrier = Hopac.Latch pixelCount
+    let barrier = Hopac.Latch (pixelCount)
     let pixels = Array.mapi (fun i x -> {intensity = x; index = i; neighbours = List.empty; chan = Ch ()}) intensities
     let runpix = runPixel fc fi pixels barrier
 
-    //let allJobs = Array.map runpix pixels
-    //Array.iter (fun j -> Job.start j |> ignore) allJobs
+    Array.iter (fun p -> run (Job.start (runpix p))) pixels
 
-    Array.map runpix pixels |> Job.conIgnore |> run
+    job {do! (Latch.await barrier |> Alt.afterFun (fun _ -> printfn "Latch has been released apparently"))} |> run
 
-    Job.start (job {do! Latch.await barrier}) |> ignore
+    //IVar.read
 
-    printfn "Finished waiting?"
+    //printfn "Finished waiting?"
 
     //printfn "Hello World from F#!"
     0 // return an integer exit code
