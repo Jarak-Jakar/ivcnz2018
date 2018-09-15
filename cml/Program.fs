@@ -124,23 +124,37 @@ let main argv =
 
     img.Mutate(fun x -> x.Grayscale() |> ignore)
 
-    let imageWidth = img.Width
-    let imageHeight = img.Height
-    let pixelCount = imageWidth * imageHeight
-    let intensities = img.GetPixelSpan().ToArray() |> Array.Parallel.map (fun p -> p.R)
-    let fc = findCoords imageWidth
-    let fi = findIndex imageWidth
-    let barrier = Hopac.Latch pixelCount
-    let outputArray = Array.zeroCreate pixelCount
-    let pixels = Array.mapi (fun i x -> {intensity = x; index = i; neighbours = List.empty; chan = Ch ()}) intensities
-    let runpix = runPixel fc fi pixels barrier outputArray
+    let mutable out_img = new Image<Rgba32>(img.Width, img.Height)
 
-    Array.iter (fun p -> run (Job.start (runpix p))) pixels
+    let timer = System.Diagnostics.Stopwatch ()
 
-    job {do! (Latch.await barrier)} |> run
+    timer.Start ()
 
-    let out_img = Image.LoadPixelData(outputArray, imageWidth, imageHeight)
+    for _ in 1..10 do
+
+        let imageWidth = img.Width
+        let imageHeight = img.Height
+        let pixelCount = imageWidth * imageHeight
+        let intensities = img.GetPixelSpan().ToArray() |> Array.Parallel.map (fun p -> p.R)
+        let fc = findCoords imageWidth
+        let fi = findIndex imageWidth
+        let barrier = Hopac.Latch pixelCount
+        let outputArray = Array.zeroCreate pixelCount
+        let pixels = Array.mapi (fun i x -> {intensity = x; index = i; neighbours = List.empty; chan = Ch ()}) intensities
+        let runpix = runPixel fc fi pixels barrier outputArray
+
+        Array.iter (fun p -> run (Job.start (runpix p))) pixels
+
+        job {do! (Latch.await barrier)} |> run
+
+        out_img <- Image.LoadPixelData(outputArray, imageWidth, imageHeight)
+
+    timer.Stop ()
 
     out_img.Save(@"..\..\Images\Outputs\cml_median_" + System.IO.Path.GetFileNameWithoutExtension(filename) + ".png")
+
+    let totalTimeTaken = float timer.ElapsedMilliseconds
+    printfn "Total time was %f" (totalTimeTaken / 1000.0)
+    printfn "Average time was %f" (totalTimeTaken / 1000.0 / 10.0)
 
     0 // return an integer exit code
