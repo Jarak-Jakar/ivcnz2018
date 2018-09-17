@@ -87,6 +87,7 @@ let makeRgba32 intensity = Rgba32(intensity, intensity, intensity, 255uy)
 
 
 let runPixel coordFinder indexFinder pixels latch (outputArray: Rgba32 []) pix = job {
+//let runPixel coordFinder indexFinder pixels latch oachan pix = job {
     let neighboursList = makeNeighboursIndexList pix coordFinder indexFinder
     let ba = buildAlts pixels pix
     let rec runpix neighbours p = job {
@@ -94,6 +95,7 @@ let runPixel coordFinder indexFinder pixels latch (outputArray: Rgba32 []) pix =
         if List.isEmpty neighbours then
             let median = List.choose id p.neighbours |> Array.ofList |> findArrayMedian
             outputArray.[p.index] <- makeRgba32 median
+            //do! oachan *<- (p.index, median)
             do! Latch.decrement latch
             return! (loopGiving p 0)
 
@@ -119,18 +121,17 @@ let storeMedians (arr: Rgba32 []) oachan = job {
 [<EntryPoint>]
 let main argv =
     let filename = argv.[0]
+    let numIterations = int argv.[1]
 
     use img = Image.Load(@"..\..\Images\Inputs\" + filename)
 
     img.Mutate(fun x -> x.Grayscale() |> ignore)
 
-    let mutable out_img = new Image<Rgba32>(img.Width, img.Height)
+    //let mutable out_img = new Image<Rgba32>(img.Width, img.Height)
 
     let timer = System.Diagnostics.Stopwatch ()
 
-    //timer.Start ()
-
-    for _ in 1..10 do
+    for _ in 1..numIterations do
 
         System.GC.Collect()
 
@@ -144,21 +145,26 @@ let main argv =
         let fi = findIndex imageWidth
         let barrier = Hopac.Latch pixelCount
         let outputArray = Array.zeroCreate pixelCount
-        let pixels = Array.mapi (fun i x -> {intensity = x; index = i; neighbours = List.empty; chan = Ch ()}) intensities
+        let pixels = Array.mapi (fun i x -> {intensity = x; index = i; neighbours = [Some(x)]; chan = Ch ()}) intensities
+        //let oachan = Ch ()
         let runpix = runPixel fc fi pixels barrier outputArray
+
+        //Job.foreverServer (storeMedians outputArray oachan) |> run
 
         Array.iter (fun p -> run (Job.start (runpix p))) pixels
 
         job {do! (Latch.await barrier)} |> run
 
-        out_img <- Image.LoadPixelData(outputArray, imageWidth, imageHeight)
+        //out_img <- Image.LoadPixelData(outputArray, imageWidth, imageHeight)
+        let out_img = Image.LoadPixelData(outputArray, imageWidth, imageHeight)
+        out_img.Save(@"..\..\Images\Outputs\cml_median_" + System.IO.Path.GetFileNameWithoutExtension(filename) + ".png")
 
         timer.Stop ()
 
-    out_img.Save(@"..\..\Images\Outputs\cml_median_" + System.IO.Path.GetFileNameWithoutExtension(filename) + ".png")
+    //out_img.Save(@"..\..\Images\Outputs\cml_median_" + System.IO.Path.GetFileNameWithoutExtension(filename) + ".png")
 
     let totalTimeTaken = timer.Elapsed.TotalSeconds
     printfn "Total time was %f" totalTimeTaken
-    printfn "Average time was %f" (totalTimeTaken / 10.0)
+    printfn "Average time was %f" (totalTimeTaken / (float numIterations))
 
     0 // return an integer exit code

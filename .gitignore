@@ -48,3 +48,5 @@ $RECYCLE.BIN/
 
 
 # End of https://www.gitignore.io/api/fsharp,windows,visualstudiocode
+
+*.7z
