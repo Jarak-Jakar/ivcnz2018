@@ -75,7 +75,8 @@ let main argv =
 
     (* let img = Image.Load(@"..\..\big-fluffy.jpg") *)
     let filename = argv.[0]
-    use img = Image.Load(@"..\..\Images\Inputs\" + filename)
+    //use img = Image.Load(@"..\..\Images\Inputs\" + filename)
+    use img = Image.Load(@"D:\Users\jcoo092\Writing\2018\IVCNZ18\Images\Inputs\" + filename)
     img.Mutate(fun x -> x.Grayscale() |> ignore)
 
     let timer = System.Diagnostics.Stopwatch()
@@ -104,7 +105,7 @@ let main argv =
 
     printfn "%f" (float timer.ElapsedMilliseconds / 1000.0) *)
 
-    out_img.Save(@"..\..\Images\Outputs\cml_median_" + System.IO.Path.GetFileNameWithoutExtension(filename) + ".png")
+    out_img.Save(@"D:\Users\jcoo092\Writing\2018\IVCNZ18\Images\Outputs\cml_median_" + System.IO.Path.GetFileNameWithoutExtension(filename) + ".png")
 
     let totalTimeTaken = timer.Elapsed.TotalSeconds
     printfn "Total time was %f" totalTimeTaken

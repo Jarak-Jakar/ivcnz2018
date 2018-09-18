@@ -9,6 +9,7 @@ open SixLabors.ImageSharp.PixelFormats
 open SixLabors.ImageSharp
 open SixLabors.ImageSharp.Processing
 open SixLabors.ImageSharp.Advanced
+open Hopac.Extensions
 
 type 'a Pix = {
     intensity: 'a
@@ -69,6 +70,7 @@ let rec loopGiving pix count =
     }
 
 let takeIntensity (pixels: 'a Pix []) neighbourIndex =
+    //printfn "taking intensity"
     if neighbourIndex < 0 || neighbourIndex >= pixels.Length then
         Alt.once (Take(None, neighbourIndex))
     else
@@ -91,7 +93,7 @@ let buildAlts (pixels: 'a Pix []) pix neighbours =
 let makeRgba32 intensity = Rgba32(intensity, intensity, intensity, 255uy)
 
 
-let runPixel coordFinder indexFinder pixels latch (outputArray: Rgba32 []) pix = job {
+(* let runPixel coordFinder indexFinder pixels latch (outputArray: Rgba32 []) pix = job {
 //let runPixel coordFinder indexFinder pixels latch oachan pix = job {
     let neighboursList = makeNeighboursIndexList pix coordFinder indexFinder
     let ba = buildAlts pixels pix
@@ -119,7 +121,35 @@ let runPixel coordFinder indexFinder pixels latch (outputArray: Rgba32 []) pix =
     }
     do! Job.start (runpix neighboursList pix)
     return ()
-}
+} *)
+
+let runPixel coordFinder indexFinder pixels latch (outputArray: Rgba32 []) pix =
+//let runPixel coordFinder indexFinder pixels latch oachan pix = job {
+    let neighboursList = makeNeighboursIndexList pix coordFinder indexFinder
+    let ba = buildAlts pixels pix
+    let rec runpix neighbours p = job {
+
+        if List.isEmpty neighbours then
+            //let median = List.choose id p.neighbours |> Array.ofList |> findArrayMedian
+            let median = List.choose id p.neighbours |> findListMedian
+            outputArray.[p.index] <- makeRgba32 median
+            //do! oachan *<- (p.index, median)
+            do! Latch.decrement latch
+            return! (loopGiving p 0)
+
+        else
+            let alts = ba neighbours
+            let! res = Alt.choose alts
+            match res with
+            //match! Alt.choose alts with
+            | Give ->
+                return! runpix neighbours p
+            | Take (n,i) ->
+                let newNeighbours = List.except [i] neighbours
+                p.neighbours <- n :: p.neighbours
+                return! runpix newNeighbours (p)
+    }
+    runpix neighboursList pix
 
 let storeMedians (arr: Rgba32 []) oachan = job {
     let! (index, median) = Ch.take oachan
@@ -143,7 +173,7 @@ let main argv =
 
         System.GC.Collect()
 
-        //timer.Start ()
+        timer.Start ()
 
         let imageWidth = img.Width
         let imageHeight = img.Height
@@ -161,22 +191,25 @@ let main argv =
 
         //timer.Start()
 
-        let rps = Array.Parallel.map runpix pixels
+        //let rps = Array.Parallel.map runpix pixels
         //Array.iter (fun p -> run (Job.start (runpix p))) pixels
+        //let res = Job.conCollect rps |> run |> fun r -> r.ToArray()
+        //Job.conIgnore rps |> run
+
+        let rps = Array.Parallel.map (fun p -> Job.delayWith runpix p) pixels
         Job.conIgnore rps |> run
+
+        printfn "Made it past conIgnore"
 
         //timer.Stop()
 
         job {do! (Latch.await barrier)} |> run
 
-
         //out_img <- Image.LoadPixelData(outputArray, imageWidth, imageHeight)
-        timer.Start ()
         let out_img = Image.LoadPixelData(outputArray, imageWidth, imageHeight)
-        timer.Stop ()
         out_img.Save(@"..\..\Images\Outputs\cml_median_" + System.IO.Path.GetFileNameWithoutExtension(filename) + ".png")
 
-        //timer.Stop ()
+        timer.Stop ()
 
     //out_img.Save(@"..\..\Images\Outputs\cml_median_" + System.IO.Path.GetFileNameWithoutExtension(filename) + ".png")
 
