@@ -1,4 +1,5 @@
 ﻿// Learn more about F# at http://fsharp.org
+module cml
 
 open System
 open Hopac
@@ -12,7 +13,7 @@ open SixLabors.ImageSharp.Advanced
 type 'a Pix = {
     intensity: 'a
     index: int
-    neighbours: 'a option list
+    mutable neighbours: 'a option list
     chan: 'a option Ch
 }
 
@@ -79,6 +80,10 @@ let findArrayMedian arr =
     Array.Sort arr
     arr.[arr.Length / 2]
 
+let inline findListMedian l =
+    List.sort l
+    |> (fun m -> m.[m.Length / 2])
+
 let buildAlts (pixels: 'a Pix []) pix neighbours =
     let takeAlts = List.map (takeIntensity pixels) neighbours
     (giveIntensity pix) :: takeAlts
@@ -93,7 +98,8 @@ let runPixel coordFinder indexFinder pixels latch (outputArray: Rgba32 []) pix =
     let rec runpix neighbours p = job {
 
         if List.isEmpty neighbours then
-            let median = List.choose id p.neighbours |> Array.ofList |> findArrayMedian
+            //let median = List.choose id p.neighbours |> Array.ofList |> findArrayMedian
+            let median = List.choose id p.neighbours |> findListMedian
             outputArray.[p.index] <- makeRgba32 median
             //do! oachan *<- (p.index, median)
             do! Latch.decrement latch
@@ -103,11 +109,13 @@ let runPixel coordFinder indexFinder pixels latch (outputArray: Rgba32 []) pix =
             let alts = ba neighbours
             let! res = Alt.choose alts
             match res with
+            //match! Alt.choose alts with
             | Give ->
                 return! runpix neighbours p
             | Take (n,i) ->
                 let newNeighbours = List.except [i] neighbours
-                return! runpix newNeighbours {p with neighbours = n :: p.neighbours}
+                p.neighbours <- n :: p.neighbours
+                return! runpix newNeighbours (p)
     }
     do! Job.start (runpix neighboursList pix)
     return ()
@@ -135,7 +143,7 @@ let main argv =
 
         System.GC.Collect()
 
-        timer.Start ()
+        //timer.Start ()
 
         let imageWidth = img.Width
         let imageHeight = img.Height
@@ -145,21 +153,30 @@ let main argv =
         let fi = findIndex imageWidth
         let barrier = Hopac.Latch pixelCount
         let outputArray = Array.zeroCreate pixelCount
-        let pixels = Array.mapi (fun i x -> {intensity = x; index = i; neighbours = [Some(x)]; chan = Ch ()}) intensities
+        let pixels = Array.Parallel.mapi (fun i x -> {intensity = x; index = i; neighbours = [Some(x)]; chan = Ch ()}) intensities
         //let oachan = Ch ()
         let runpix = runPixel fc fi pixels barrier outputArray
 
         //Job.foreverServer (storeMedians outputArray oachan) |> run
 
-        Array.iter (fun p -> run (Job.start (runpix p))) pixels
+        //timer.Start()
+
+        let rps = Array.Parallel.map runpix pixels
+        //Array.iter (fun p -> run (Job.start (runpix p))) pixels
+        Job.conIgnore rps |> run
+
+        //timer.Stop()
 
         job {do! (Latch.await barrier)} |> run
 
+
         //out_img <- Image.LoadPixelData(outputArray, imageWidth, imageHeight)
+        timer.Start ()
         let out_img = Image.LoadPixelData(outputArray, imageWidth, imageHeight)
+        timer.Stop ()
         out_img.Save(@"..\..\Images\Outputs\cml_median_" + System.IO.Path.GetFileNameWithoutExtension(filename) + ".png")
 
-        timer.Stop ()
+        //timer.Stop ()
 
     //out_img.Save(@"..\..\Images\Outputs\cml_median_" + System.IO.Path.GetFileNameWithoutExtension(filename) + ".png")
 

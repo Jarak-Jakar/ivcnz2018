@@ -1,4 +1,5 @@
 ﻿// Learn more about F# at http://fsharp.org
+module naive
 
 open SixLabors.ImageSharp
 open SixLabors.ImageSharp.Advanced
