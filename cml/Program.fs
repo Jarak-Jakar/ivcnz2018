@@ -8,6 +8,7 @@ open SixLabors.ImageSharp.PixelFormats
 open SixLabors.ImageSharp
 open SixLabors.ImageSharp.Processing
 open SixLabors.ImageSharp.Advanced
+open SixLabors.Memory
 
 type 'a Pix = {
     intensity: 'a
@@ -113,6 +114,8 @@ let storeMedians (arr: Rgba32 []) oachan = job {
 let main argv =
     let filename = argv.[0]
     let numIterations = int argv.[1]
+
+    Configuration.Default.MemoryAllocator <- ArrayPoolMemoryAllocator.CreateWithModeratePooling()
 
     use img = Image.Load(@"..\..\Images\Inputs\" + filename)
 
