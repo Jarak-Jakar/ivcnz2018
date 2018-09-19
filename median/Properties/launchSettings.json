@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "median": {
-      "commandName": "Project",
-      "commandLineArgs": "medium.png 1"
-    }
-  }
-}

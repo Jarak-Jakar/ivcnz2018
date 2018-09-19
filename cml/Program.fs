@@ -1,7 +1,6 @@
 ﻿// Learn more about F# at http://fsharp.org
 module cml
 
-open System
 open Hopac
 open Hopac.Extensions
 open Hopac.Infixes
@@ -142,12 +141,13 @@ let main argv =
 
         let rps = Array.Parallel.map runpix pixels
         Job.conIgnore rps |> run
+        //Array.Parallel.map (Job.delayWith runpix |> Job.startIgnore()) pixels |> ignore
         job {do! (Latch.await barrier)} |> run
 
         out_img <- Image.LoadPixelData(outputArray, imageWidth, imageHeight)
         timer.Stop ()
 
-    out_img.Save(@"..\..\Images\Outputs\cml_median_" + System.IO.Path.GetFileNameWithoutExtension(filename) + ".png")
+    out_img.Save(@"..\..\Images\Outputs\cml_" + System.IO.Path.GetFileNameWithoutExtension(filename) + ".png")
 
     let totalTimeTaken = timer.Elapsed.TotalSeconds
     printfn "Total time was %f" totalTimeTaken
