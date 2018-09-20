@@ -1,5 +1,5 @@
 ﻿// Learn more about F# at http://fsharp.org
-module median
+module Braunl
 
 open System
 open SixLabors.ImageSharp

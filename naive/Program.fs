@@ -26,8 +26,9 @@ let processWindow clampedArrayFunc windowSize x y =
     let mutable p = clampedArrayFunc x y
     for z in negBound..posBound do
         for w in negBound..posBound do
-            let intensity = clampedArrayFunc (x + z) (y + w)
-            intensities <- intensity :: intensities
+            (* let intensity = clampedArrayFunc (x + z) (y + w)
+            intensities <- intensity :: intensities *)
+            intensities <- (clampedArrayFunc (x + z) (y + w)) :: intensities
     List.choose id intensities |> findMedian
 
 let makeRgba32 r = Rgba32(r, r, r, 255uy)
@@ -37,7 +38,7 @@ let main argv =
 
     let filename = argv.[0]
     let numIterations = int argv.[1]
-    let windowSize = 3
+    let windowSize = int argv.[2]
 
     Configuration.Default.MemoryAllocator <- ArrayPoolMemoryAllocator.CreateWithModeratePooling()
 

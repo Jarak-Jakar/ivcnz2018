@@ -21,7 +21,7 @@ type 'a Choice =
     | Give
     | Take of ('a option * int)
 
-type Directions =
+(* type Directions =
     | North
     | South
     | West
@@ -31,17 +31,26 @@ type Directions =
     | Southwest
     | Southeast
 
-let directions = [|North; South; West; East; Northwest; Northeast; Southwest; Southeast|]
+let directions = [|North; South; West; East; Northwest; Northeast; Southwest; Southeast|] *)
 
-let displacement = function
+let listDisplacements ws =
+    let ub = (ws - 1) / 2
+    let lb = -ub
+    List.collect (fun x ->
+        List.map (fun y ->
+            (x, y)
+        ) [lb..ub]
+    ) [lb..ub] |> List.except [(0,0)]
+
+(* let displacement = function
     | North -> (0, -1)
     | South -> (0, 1)
     | West -> (-1, 0)
-    | East -> (1,0)
+    | East -> (1, 0)
     | Northwest -> (-1, -1)
     | Northeast -> (1, -1)
     | Southwest -> (-1, 1)
-    | Southeast -> (1, 1)
+    | Southeast -> (1, 1) *)
 
 
 let findIndex width x y =
@@ -50,13 +59,21 @@ let findIndex width x y =
 let findCoords width index =
     (index % width, index / width)
 
-let makeNeighboursIndexList pix coordFinder indexFinder =
+let makeNeighboursIndexList' pix coordFinder indexFinder windowSize =
+    let x,y = coordFinder pix.index
+    //let nds = listDisplacements windowSize
+    listDisplacements windowSize |>
+    List.map (fun (dx, dy) ->
+        indexFinder (x + dx) (y + dy)
+    )
+
+(* let makeNeighboursIndexList pix coordFinder indexFinder =
     let x,y = coordFinder pix.index
     Array.map (fun d ->
         let dx,dy = displacement d
         indexFinder (x + dx) (y + dy)
     ) directions
-    |> Array.toList
+    |> Array.toList *)
 
 let takeIntensity pixels neighbourIndex =
     if neighbourIndex < 0 || neighbourIndex >= (Array.length pixels) then
@@ -82,8 +99,9 @@ let buildAlts (pixels: 'a Pix []) pix neighbours =
 
 let makeRgba32 intensity = Rgba32(intensity, intensity, intensity, 255uy)
 
-let runPixel coordFinder indexFinder pixels barrier (outputArray: Rgba32 []) pix =
-    let neighboursIndexList = makeNeighboursIndexList pix coordFinder indexFinder
+let runPixel coordFinder indexFinder pixels barrier windowSize (outputArray: Rgba32 []) pix =
+    //let neighboursIndexList = makeNeighboursIndexList pix coordFinder indexFinder
+    let neighboursIndexList = makeNeighboursIndexList' pix coordFinder indexFinder windowSize
     let ba = buildAlts pixels pix
     let alts = ba neighboursIndexList
     job {
@@ -114,6 +132,7 @@ let storeMedians (arr: Rgba32 []) oachan = job {
 let main argv =
     let filename = argv.[0]
     let numIterations = int argv.[1]
+    let windowSize = int argv.[2]
 
     Configuration.Default.MemoryAllocator <- ArrayPoolMemoryAllocator.CreateWithModeratePooling()
 
@@ -140,7 +159,7 @@ let main argv =
         let barrier = Hopac.Latch pixelCount
         let outputArray = Array.zeroCreate pixelCount
         let pixels = Array.Parallel.mapi (fun i x -> {intensity = x; index = i; neighbours = [Some(x)]; chan = Ch ();}) intensities
-        let runpix = runPixel fc fi pixels barrier outputArray
+        let runpix = runPixel fc fi pixels barrier windowSize outputArray
 
         let rps = Array.Parallel.map runpix pixels
         Job.conIgnore rps |> run
