@@ -1,4 +1,5 @@
 ﻿// Learn more about F# at http://fsharp.org
+module Braunl
 
 open System
 open SixLabors.ImageSharp
@@ -8,11 +9,11 @@ open SixLabors.ImageSharp.PixelFormats
 
 type Gpx = byte option
 
-type Move =
-    | West
-    | East
+type Directions =
     | North
     | South
+    | West
+    | East
     | Northwest
     | Northeast
     | Southwest
@@ -72,7 +73,10 @@ let getNeighbours width height (neighbourhoods: Gpx[][]) i =
 [<EntryPoint>]
 let main argv =
 
-    let img = Image.Load(@"..\..\big-fluffy.jpg")
+    let filename = argv.[0]
+    let totalIterations = int argv.[1]
+    use img = Image.Load(@"..\..\Images\Inputs\" + filename)
+    //use img = Image.Load(@"D:\Users\jcoo092\Writing\2018\IVCNZ18\Images\Inputs\" + filename)
     img.Mutate(fun x -> x.Grayscale() |> ignore)
 
     let timer = System.Diagnostics.Stopwatch()
@@ -97,8 +101,14 @@ let main argv =
 
     timer.Stop()
 
-    out_img.Save(@"..\..\median_out.jpg")
+    (* out_img.Save(@"..\..\median_out.jpg")
 
-    printfn "%f" (float timer.ElapsedMilliseconds / 1000.0)
+    printfn "%f" (float timer.ElapsedMilliseconds / 1000.0) *)
+
+    out_img.Save(@"D:\Users\jcoo092\Writing\2018\IVCNZ18\Images\Outputs\median_" + System.IO.Path.GetFileNameWithoutExtension(filename) + ".png")
+
+    let totalTimeTaken = timer.Elapsed.TotalSeconds
+    printfn "Total time was %f" totalTimeTaken
+    printfn "Average time was %f" (totalTimeTaken / float totalIterations)
 
     0 // return an integer exit code
