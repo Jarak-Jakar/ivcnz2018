@@ -6,6 +6,7 @@ open SixLabors.ImageSharp
 open SixLabors.ImageSharp.Processing
 open SixLabors.ImageSharp.Advanced
 open SixLabors.ImageSharp.PixelFormats
+open SixLabors.Memory
 
 type Gpx = byte option
 
@@ -69,14 +70,32 @@ let getNeighbours width height (neighbourhoods: Gpx[][]) i =
                 neighbourhoods.[yPlusOne]
     (up, here, down)
 
+let medianFilter intensities width height windowSize = 
+    let mv = move intensities width height
+
+    let buildNeighbourArray i p =
+        let arr = Array.zeroCreate windowSize
+        arr.[0] <- mv i West
+        arr.[1] <- Some(p)
+        arr.[2] <- mv i East
+        arr
+
+    let gn = getNeighbours width height <| Array.Parallel.mapi buildNeighbourArray intensities
+
+    let finalPixels = [|0..(width * height)-1|] |> Array.Parallel.map (gn >> mergeGpxArraysTuple >> createRgba32Pixel)
+
+    Image.LoadPixelData(finalPixels, width, height)
+
 
 [<EntryPoint>]
 let main argv =
 
+    Configuration.Default.MemoryAllocator <- ArrayPoolMemoryAllocator.CreateWithModeratePooling()
+
     let filename = argv.[0]
     let totalIterations = int argv.[1]
+    let windowSize = int argv.[2]
     use img = Image.Load(@"..\..\Images\Inputs\" + filename)
-    //use img = Image.Load(@"D:\Users\jcoo092\Writing\2018\IVCNZ18\Images\Inputs\" + filename)
     img.Mutate(fun x -> x.Grayscale() |> ignore)
 
     let timer = System.Diagnostics.Stopwatch()
@@ -87,7 +106,7 @@ let main argv =
     let mv = move intensities img.Width img.Height
 
     let buildNeighbourArray i p =
-        let arr = Array.zeroCreate 3
+        let arr = Array.zeroCreate windowSize
         arr.[0] <- mv i West
         arr.[1] <- Some(p)
         arr.[2] <- mv i East
@@ -100,10 +119,6 @@ let main argv =
     let out_img = Image.LoadPixelData(finalPixels, img.Width, img.Height)
 
     timer.Stop()
-
-    (* out_img.Save(@"..\..\median_out.jpg")
-
-    printfn "%f" (float timer.ElapsedMilliseconds / 1000.0) *)
 
     out_img.Save(@"D:\Users\jcoo092\Writing\2018\IVCNZ18\Images\Outputs\median_" + System.IO.Path.GetFileNameWithoutExtension(filename) + ".png")
 

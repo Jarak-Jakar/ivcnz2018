@@ -128,6 +128,21 @@ let storeMedians (arr: Rgba32 []) oachan = job {
     arr.[index] <- makeRgba32 median
 }
 
+let medianFilter intensities width height windowSize = 
+    let pixelCount = width * height
+    let fc = findCoords width
+    let fi = findIndex width
+    let barrier = Hopac.Latch pixelCount
+    let outputArray = Array.zeroCreate pixelCount
+    let pixels = Array.Parallel.mapi (fun i x -> {intensity = x; index = i; neighbours = [Some(x)]; chan = Ch ();}) intensities
+    let runpix = runPixel fc fi pixels barrier windowSize outputArray
+
+    let rps = Array.Parallel.map runpix pixels
+    Job.conIgnore rps |> run
+    //Array.Parallel.map (Job.delayWith runpix |> Job.startIgnore()) pixels |> ignore
+    job {do! (Latch.await barrier)} |> run
+    Image.LoadPixelData(outputArray, width, height)
+
 [<EntryPoint>]
 let main argv =
     let filename = argv.[0]

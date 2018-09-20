@@ -33,6 +33,18 @@ let processWindow clampedArrayFunc windowSize x y =
 
 let makeRgba32 r = Rgba32(r, r, r, 255uy)
 
+let medianFilter intensities width height windowSize = 
+    let ac = accessClampedArray intensities width height
+    let pw = processWindow ac windowSize
+
+    let outputPixels = Array.Parallel.map (fun i ->
+                            let x = i % width
+                            let y = i / width
+                            pw x y |> makeRgba32
+                        ) [|0..intensities.Length-1|]
+
+    Image.LoadPixelData(outputPixels, width, height)
+
 [<EntryPoint>]
 let main argv =
 
