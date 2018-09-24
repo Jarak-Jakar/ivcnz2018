@@ -45,11 +45,13 @@ type PerfBenchmark () =
     let mutable out_img = new Image<Rgba32>(imgWidth, imgHeight)
 
     //[<Params (3, 5, 7, 9, 11)>]
-    [<Params (3)>]
+	[<Params (3, 5, 7)>]
+    //[<Params (3)>]
     member val public windowSize = 0 with get, set
 
     //[<Params ("very small", "small", "medium", "peppers_gray", "big", "very big")>]
-    [<Params ("very small")>]
+	[<Params ("very small", "small", "medium", "peppers_gray")>]
+    //[<Params ("very small")>]
     member val public filename = "" with get, set
 
     [<GlobalSetup>]
@@ -71,15 +73,15 @@ type PerfBenchmark () =
         out_img <- naive.medianFilter intensities imgWidth imgHeight self.windowSize
         //out_img <- Image.LoadPixelData(res, imgWidth, imgHeight)
 
-    // [<Benchmark(Description="Braunl")>]
-    // member self.Braunl () =
-    //     out_img <- Braunl.medianFilter intensities imgWidth imgHeight self.windowSize
-    //     //out_img <- Image.LoadPixelData(res, imgWidth, imgHeight)
+     [<Benchmark(Description="Braunl")>]
+     member self.Braunl () =
+         out_img <- Braunl.medianFilter intensities imgWidth imgHeight self.windowSize
+         //out_img <- Image.LoadPixelData(res, imgWidth, imgHeight)
 
-    // [<Benchmark(Description="cml")>]
-    // member self.cml () =
-    //     out_img <- cml.medianFilter intensities imgWidth imgHeight self.windowSize
-    //     //out_img <- Image.LoadPixelData(res, imgWidth, imgHeight)
+     [<Benchmark(Description="cml")>]
+     member self.cml () =
+         out_img <- cml.medianFilter intensities imgWidth imgHeight self.windowSize
+         //out_img <- Image.LoadPixelData(res, imgWidth, imgHeight)
 
 
 [<EntryPoint>]
