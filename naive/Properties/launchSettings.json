@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "naive": {
+      "commandName": "Project",
+      "commandLineArgs": "\"peppers_gray_noisy.png\" 1 3",
+      "workingDirectory": "D:\\Users\\jcoo092\\Writing\\2018\\IVCNZ18\\Programs\\naive"
+    }
+  }
+}

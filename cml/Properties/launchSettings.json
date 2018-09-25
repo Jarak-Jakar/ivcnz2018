@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "cml": {
+      "commandName": "Project",
+      "commandLineArgs": "\"medium_noisy.png\" 2 7",
+      "workingDirectory": "D:\\Users\\jcoo092\\Writing\\2018\\IVCNZ18\\Programs\\cml"
+    }
+  }
+}

@@ -12,6 +12,9 @@ EndProject
 Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "benchmarking", "benchmarking\benchmarking.fsproj", "{4CA2774B-13D2-4978-8D1D-E41136D4F19C}"
 EndProject
 Global
+	GlobalSection(Performance) = preSolution
+		HasPerformanceSessions = true
+	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Debug|x64 = Debug|x64
@@ -37,35 +40,30 @@ Global
 		{F9D9D8FA-69D4-451B-B816-CC3DFBBE8335}.Release|x64.ActiveCfg = Release|x64
 		{F9D9D8FA-69D4-451B-B816-CC3DFBBE8335}.Release|x64.Build.0 = Release|x64
 		{F9D9D8FA-69D4-451B-B816-CC3DFBBE8335}.Release|x86.ActiveCfg = Release|x64
-		{A0207CE1-C1A5-4149-8113-D2CA70F5ECC5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{A0207CE1-C1A5-4149-8113-D2CA70F5ECC5}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{A0207CE1-C1A5-4149-8113-D2CA70F5ECC5}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{A0207CE1-C1A5-4149-8113-D2CA70F5ECC5}.Debug|x64.Build.0 = Debug|Any CPU
-		{A0207CE1-C1A5-4149-8113-D2CA70F5ECC5}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{A0207CE1-C1A5-4149-8113-D2CA70F5ECC5}.Debug|x86.Build.0 = Debug|Any CPU
-		{A0207CE1-C1A5-4149-8113-D2CA70F5ECC5}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{A0207CE1-C1A5-4149-8113-D2CA70F5ECC5}.Release|Any CPU.Build.0 = Release|Any CPU
-		{A0207CE1-C1A5-4149-8113-D2CA70F5ECC5}.Release|x64.ActiveCfg = Release|Any CPU
-		{A0207CE1-C1A5-4149-8113-D2CA70F5ECC5}.Release|x64.Build.0 = Release|Any CPU
-		{A0207CE1-C1A5-4149-8113-D2CA70F5ECC5}.Release|x86.ActiveCfg = Release|Any CPU
-		{A0207CE1-C1A5-4149-8113-D2CA70F5ECC5}.Release|x86.Build.0 = Release|Any CPU
-		{4CA2774B-13D2-4978-8D1D-E41136D4F19C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{4CA2774B-13D2-4978-8D1D-E41136D4F19C}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{4CA2774B-13D2-4978-8D1D-E41136D4F19C}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{4CA2774B-13D2-4978-8D1D-E41136D4F19C}.Debug|x64.Build.0 = Debug|Any CPU
-		{4CA2774B-13D2-4978-8D1D-E41136D4F19C}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{4CA2774B-13D2-4978-8D1D-E41136D4F19C}.Debug|x86.Build.0 = Debug|Any CPU
-		{4CA2774B-13D2-4978-8D1D-E41136D4F19C}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{4CA2774B-13D2-4978-8D1D-E41136D4F19C}.Release|Any CPU.Build.0 = Release|Any CPU
-		{4CA2774B-13D2-4978-8D1D-E41136D4F19C}.Release|x64.ActiveCfg = Release|Any CPU
-		{4CA2774B-13D2-4978-8D1D-E41136D4F19C}.Release|x64.Build.0 = Release|Any CPU
-		{4CA2774B-13D2-4978-8D1D-E41136D4F19C}.Release|x86.ActiveCfg = Release|Any CPU
-		{4CA2774B-13D2-4978-8D1D-E41136D4F19C}.Release|x86.Build.0 = Release|Any CPU
+		{A0207CE1-C1A5-4149-8113-D2CA70F5ECC5}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{A0207CE1-C1A5-4149-8113-D2CA70F5ECC5}.Debug|x64.ActiveCfg = Debug|x64
+		{A0207CE1-C1A5-4149-8113-D2CA70F5ECC5}.Debug|x64.Build.0 = Debug|x64
+		{A0207CE1-C1A5-4149-8113-D2CA70F5ECC5}.Debug|x86.ActiveCfg = Debug|x64
+		{A0207CE1-C1A5-4149-8113-D2CA70F5ECC5}.Release|Any CPU.ActiveCfg = Release|x64
+		{A0207CE1-C1A5-4149-8113-D2CA70F5ECC5}.Release|x64.ActiveCfg = Release|x64
+		{A0207CE1-C1A5-4149-8113-D2CA70F5ECC5}.Release|x64.Build.0 = Release|x64
+		{A0207CE1-C1A5-4149-8113-D2CA70F5ECC5}.Release|x86.ActiveCfg = Release|x64
+		{4CA2774B-13D2-4978-8D1D-E41136D4F19C}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{4CA2774B-13D2-4978-8D1D-E41136D4F19C}.Debug|x64.ActiveCfg = Debug|x64
+		{4CA2774B-13D2-4978-8D1D-E41136D4F19C}.Debug|x64.Build.0 = Debug|x64
+		{4CA2774B-13D2-4978-8D1D-E41136D4F19C}.Debug|x86.ActiveCfg = Debug|x64
+		{4CA2774B-13D2-4978-8D1D-E41136D4F19C}.Release|Any CPU.ActiveCfg = Release|x64
+		{4CA2774B-13D2-4978-8D1D-E41136D4F19C}.Release|x64.ActiveCfg = Release|x64
+		{4CA2774B-13D2-4978-8D1D-E41136D4F19C}.Release|x64.Build.0 = Release|x64
+		{4CA2774B-13D2-4978-8D1D-E41136D4F19C}.Release|x86.ActiveCfg = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {58916771-5F7D-41A1-91F8-90772205D943}
+	EndGlobalSection
+	GlobalSection(Performance) = preSolution
+		HasPerformanceSessions = true
 	EndGlobalSection
 EndGlobal

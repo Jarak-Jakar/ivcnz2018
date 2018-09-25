@@ -10,7 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Program.fs" />
+    <Compile Include="D:\Users\jcoo092\Writing\2018\IVCNZ18\Programs\braunl\Program.fs" Link="Program.fs" />
   </ItemGroup>
 
   <ItemGroup>
