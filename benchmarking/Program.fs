@@ -42,15 +42,15 @@ type PerfBenchmark () =
     let mutable intensities = [||]
     let mutable imgWidth = 5
     let mutable imgHeight = 5
-    let mutable out_img = new Image<Rgba32>(imgWidth, imgHeight)
+    let mutable out_img = new Image<Rgb24>(imgWidth, imgHeight)
 
     //[<Params (3, 5, 7, 9, 11)>]
-	[<Params (3, 5, 7)>]
+    [<Params (3, 5, 7)>]
     //[<Params (3)>]
     member val public windowSize = 0 with get, set
 
     //[<Params ("very small", "small", "medium", "peppers_gray", "big", "very big")>]
-	[<Params ("very small", "small", "medium", "peppers_gray")>]
+    [<Params ("very small", "small", "medium", "peppers_gray")>]
     //[<Params ("very small")>]
     member val public filename = "" with get, set
 
