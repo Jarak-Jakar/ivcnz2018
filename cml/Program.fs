@@ -22,26 +22,9 @@ type 'a Choice =
     | Give
     | Take of ('a option * int)
 
-(* type Directions =
-    | North
-    | South
-    | West
-    | East
-    | Northwest
-    | Northeast
-    | Southwest
-    | Southeast
-
-let directions = [|North; South; West; East; Northwest; Northeast; Southwest; Southeast|] *)
-
 let listDisplacements ws =
     let ub = (ws - 1) / 2
     let lb = -ub
-    //List.collect (fun x ->
-    //    List.map (fun y ->
-    //        (x, y)
-    //    ) [lb..ub]
-    //) [lb..ub] |> List.except [(0,0)]
     let mutable disps = List.empty
     for i in lb..ub do
         for j in lb..ub do
@@ -50,16 +33,6 @@ let listDisplacements ws =
             else
                 disps <- (i, j) :: disps
     disps
-
-(* let displacement = function
-    | North -> (0, -1)
-    | South -> (0, 1)
-    | West -> (-1, 0)
-    | East -> (1, 0)
-    | Northwest -> (-1, -1)
-    | Northeast -> (1, -1)
-    | Southwest -> (-1, 1)
-    | Southeast -> (1, 1) *)
 
 
 let findIndex width x y =
@@ -70,19 +43,10 @@ let findCoords width index =
 
 let makeNeighboursIndexList' pix coordFinder indexFinder windowSize =
     let x,y = coordFinder pix.index
-    //let nds = listDisplacements windowSize
     listDisplacements windowSize |>
     List.map (fun (dx, dy) ->
         indexFinder (x + dx) (y + dy)
     )
-
-(* let makeNeighboursIndexList pix coordFinder indexFinder =
-    let x,y = coordFinder pix.index
-    Array.map (fun d ->
-        let dx,dy = displacement d
-        indexFinder (x + dx) (y + dy)
-    ) directions
-    |> Array.toList *)
 
 let takeIntensity pixels neighbourIndex =
     if neighbourIndex < 0 || neighbourIndex >= (Array.length pixels) then
@@ -91,20 +55,10 @@ let takeIntensity pixels neighbourIndex =
         Ch.take pixels.[neighbourIndex].chan
             ^-> (fun i -> Take (i, neighbourIndex))
 
-
-(* let findArrayMedian arr =
-    Array.Sort arr
-    arr.[arr.Length / 2] *)
-
+            
 let inline findListMedian l =
     List.sort l
     |> (fun m -> m.[m.Length / 2])
-
-//let buildAlts (pixels: 'a Pix []) pix neighbours =
-//    let give = pix.chan *<- Some(pix.intensity)
-//                ^->. Give
-//    let takes = List.map (takeIntensity pixels) neighbours
-//    give :: takes
 
 let buildAlts' (pixels: 'a Pix []) pix neighbour =
     let give = pix.chan *<- Some(pix.intensity)
@@ -112,11 +66,9 @@ let buildAlts' (pixels: 'a Pix []) pix neighbour =
     let take = takeIntensity pixels neighbour
     [give; take]
 
-//let makeRgba32 intensity = Rgba32(intensity, intensity, intensity, 255uy)
 let makeRgb24 intensity = Rgb24(intensity, intensity, intensity)
 
 let runPixel coordFinder indexFinder pixels barrier windowSize (outputArray: Rgb24 []) pix =
-    //let neighboursIndexList = makeNeighboursIndexList pix coordFinder indexFinder
     let neighboursIndexList = makeNeighboursIndexList' pix coordFinder indexFinder windowSize
     let ba = buildAlts' pixels pix
     let alts = ba (List.head neighboursIndexList)
@@ -126,7 +78,6 @@ let runPixel coordFinder indexFinder pixels barrier windowSize (outputArray: Rgb
                                                     match x with
                                                     | Give -> (neighbours, p, alts)
                                                     | Take(n,i) ->
-                                                        //let newNeighbours = List.except [i] neighbours
                                                         if List.isEmpty neighbours then
                                                             let median = List.choose id p.neighbours |> findListMedian
                                                             outputArray.[p.index] <- median |> makeRgb24
@@ -154,10 +105,7 @@ let medianFilter intensities width height windowSize =
     let pixels = Array.Parallel.mapi (fun i x -> {intensity = x; index = i; neighbours = [Some(x)]; chan = Ch ();}) intensities
     let runpix = runPixel fc fi pixels barrier windowSize outputArray
 
-    //let rps = Array.Parallel.map runpix pixels
-    //Job.conIgnore rps |> run
     Seq.Con.mapJob runpix pixels |> run |> ignore
-    //Array.Parallel.map (Job.delayWith runpix |> Job.startIgnore()) pixels |> ignore
     job {do! (Latch.await barrier)} |> run
     Image.LoadPixelData(outputArray, width, height)
 
@@ -201,24 +149,8 @@ let main argv =
         let imageHeight = img.Height
         let pixelCount = imageWidth * imageHeight
         let intensities = img.GetPixelSpan().ToArray() |> Array.Parallel.map (fun p -> p.R)
-        //let fc = findCoords imageWidth
-        //let fi = findIndex imageWidth
-        //let barrier = Hopac.Latch pixelCount
-        //let outputArray = Array.zeroCreate pixelCount
-        //let pixels = Array.Parallel.mapi (fun i x -> {intensity = x; index = i; neighbours = [Some(x)]; chan = Ch ();}) intensities
-        //let runpix = runPixel fc fi pixels barrier windowSize outputArray
-
-        //let rps = Array.Parallel.map runpix pixels
-        //Job.conIgnore rps |> run
-        ////Array.Parallel.map (Job.delayWith runpix |> Job.startIgnore()) pixels |> ignore
-        //job {do! (Latch.await barrier)} |> run
-
-        //out_img <- Image.LoadPixelData(outputArray, imageWidth, imageHeight)
         out_img <- medianFilter intensities img.Width img.Height windowSize
         timer.Stop ()
-
-    //out_img.Save(@"D:\Users\jcoo092\Writing\2018\IVCNZ18\Images\Outputs\cml_" + System.IO.Path.GetFileNameWithoutExtension(filename) +
-    //                "_" + string windowSize +  ".png")
 
     use out_file = new System.IO.FileStream(@"..\..\Images\Outputs\cml_" + System.IO.Path.GetFileNameWithoutExtension(filename) +
                     "_" + string windowSize +  ".png", System.IO.FileMode.OpenOrCreate)

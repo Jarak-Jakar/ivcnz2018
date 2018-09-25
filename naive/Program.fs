@@ -25,15 +25,11 @@ let processWindow clampedArrayFunc windowSize x y =
     let mutable intensities = List.Empty
     let posBound = (windowSize - 1) / 2
     let negBound = -posBound
-    //let mutable p = clampedArrayFunc x y
     for z in negBound..posBound do
         for w in negBound..posBound do
-            (* let intensity = clampedArrayFunc (x + z) (y + w)
-            intensities <- intensity :: intensities *)
             intensities <- (clampedArrayFunc (x + z) (y + w)) :: intensities
     List.choose id intensities |> findMedian
 
-//let makeRgba32 r = Rgba32(r, r, r, 255uy)
 let makeRgb24 r = Rgb24(r, r, r)
 
 let medianFilter intensities width height windowSize = 
@@ -63,24 +59,9 @@ let main argv =
     timer.Start()
 
     let inputPixels = img.GetPixelSpan().ToArray() |> Array.Parallel.map (fun p -> p.R)
-
-    //let ac = accessClampedArray inputPixels img.Width img.Height
-    //let pw = processWindow ac windowSize
-
-    //let outputPixels = Array.Parallel.map (fun i ->
-    //                        let x = i % img.Width
-    //                        let y = i / img.Width
-    //                        pw x y |> makeRgba32
-    //                    ) [|0..inputPixels.Length-1|]
-
-    //let out_img = Image.LoadPixelData(outputPixels, img.Width, img.Height)
-
     let out_img = medianFilter inputPixels img.Width img.Height windowSize
 
     timer.Stop()
-
-    //out_img.Save(@"..\..\Images\Outputs\naive_" + System.IO.Path.GetFileNameWithoutExtension(filename) +
-    //                "_" + string windowSize +  ".png")
 
     use out_file = new System.IO.FileStream(@"..\..\Images\Outputs\naive_" + System.IO.Path.GetFileNameWithoutExtension(filename) +
                     "_" + string windowSize +  ".png", FileMode.OpenOrCreate)
