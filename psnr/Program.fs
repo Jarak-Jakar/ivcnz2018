@@ -14,8 +14,8 @@ let timer = System.Diagnostics.Stopwatch()
 
 let psnr (originalImgPath : string) (denoisedImgPath : string) =
     use originalImg = Image.Load(originalImgPath)
-    let originalImgArr = originalImg.GetPixelSpan().ToArray() |> Array.map (fun p -> p.R |> uint32)
-    let denoisedImgArr = Image.Load(denoisedImgPath).GetPixelSpan().ToArray() |> Array.map (fun p -> p.R |> uint32)
+    let originalImgArr = originalImg.GetPixelSpan().ToArray() |> Array.map (fun p -> p.R |> int32)
+    let denoisedImgArr = Image.Load(denoisedImgPath).GetPixelSpan().ToArray() |> Array.map (fun p -> p.R |> int32)
 
     timer.Start()
 
@@ -23,15 +23,20 @@ let psnr (originalImgPath : string) (denoisedImgPath : string) =
     //let max2 = bmax * bmax |> float
     let coefficient = (originalImg.Width * originalImg.Height) |> float |> (/) 1.0
 
-    let vorig = Vector(originalImgArr)
+    (* let vorig = Vector(originalImgArr)
+    printfn "%d" Vector<uint32>.Count
     let vdenoise = Vector(denoisedImgArr)
 
-    let diffs = vorig - vdenoise //|> Vector.AsVectorUInt64
-    let diffs2 = diffs * diffs
+    (* let diffs = vorig - vdenoise //|> Vector.AsVectorUInt64
+    let diffs2 = diffs * diffs *)
+    let diffs2 = vorig - vdenoise |> fun d -> d * d
+    //let diffs2 = diffs * diffs
     //let (receiverArr : uint64[]) = Array.zeroCreate originalImgArr.Length
     let receiverArr = Array.zeroCreate originalImgArr.Length
     diffs2.CopyTo(receiverArr)
-    let MSE = Array.sum receiverArr |> float |> (*) coefficient
+    let MSE = Array.sum receiverArr |> float |> (*) coefficient *)
+
+    let MSE = Array.zip originalImgArr denoisedImgArr |> Array.Parallel.map (fun (a,b) -> pown (a - b) 2) |> Array.sum |> float |> (*) coefficient
     //if MSE = 0.0 then printfn "it's zero!"
     //let psnr = max2 / MSE |> log10 |> (*) 10.0 |> fun i -> Math.Round(i, 2) *)
     max2 / MSE |> log10 |> (*) 10.0 |> fun i -> Math.Round(i, 2)
