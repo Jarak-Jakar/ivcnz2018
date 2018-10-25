@@ -390,3 +390,4 @@ ASALocalRun/
 # End of https://www.gitignore.io/api/visualstudio
 
 *.7z
+*.csv
