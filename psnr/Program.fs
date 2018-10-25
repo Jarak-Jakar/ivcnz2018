@@ -14,8 +14,8 @@ let timer = System.Diagnostics.Stopwatch()
 
 let psnr (originalImgPath : string) (denoisedImgPath : string) =
     use originalImg = Image.Load(originalImgPath)
-    let originalImgArr = originalImg.GetPixelSpan().ToArray() |> Array.map (fun p -> p.R |> int32)
-    let denoisedImgArr = Image.Load(denoisedImgPath).GetPixelSpan().ToArray() |> Array.map (fun p -> p.R |> int32)
+    let originalImgArr = originalImg.GetPixelSpan().ToArray() |> Array.Parallel.map (fun p -> p.R |> int32)
+    let denoisedImgArr = Image.Load(denoisedImgPath).GetPixelSpan().ToArray() |> Array.Parallel.map (fun p -> p.R |> int32)
 
     timer.Start()
 
@@ -71,7 +71,7 @@ let main argv =
     let algos = ["Naive"; "Braunl"; "CML"]
 
     //use csvfile = new System.IO.FileStream("psnrs.csv", System.IO.FileMode.OpenOrCreate)
-    use csvfile = new System.IO.StreamWriter(path="psnrs.csv")
+    use csvfile = new System.IO.StreamWriter(path="psnrs-arr.csv")
     fprintfn csvfile "Algorithm,Image,WindowSize,PSNR,ElapsedTime"
 
     for fn in filenames do
