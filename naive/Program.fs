@@ -8,6 +8,7 @@ open SixLabors.Memory
 open SixLabors.ImageSharp.Processing
 open SixLabors.ImageSharp.Formats.Png
 open System.IO
+open Nessos.Streams
 
 let timer = System.Diagnostics.Stopwatch()
 
@@ -32,17 +33,25 @@ let processWindow clampedArrayFunc windowSize x y =
 
 let makeRgb24 r = Rgb24(r, r, r)
 
-let medianFilter intensities width height windowSize = 
+let medianFilter intensities width height windowSize =
     let ac = accessClampedArray intensities width height
     let pw = processWindow ac windowSize
 
-    let outputPixels = Array.Parallel.map (fun i ->
+    let outputPixels = ParStream.map (fun i ->
                             let x = i % width
                             let y = i / width
                             pw x y |> makeRgb24
-                        ) [|0..intensities.Length-1|]
+                        ) (ParStream.ofArray [|0..intensities.Length-1|])
 
-    Image.LoadPixelData(outputPixels, width, height)
+    Image.LoadPixelData(ParStream.toArray outputPixels, width, height)
+
+    // let outputPixels = Array.Parallel.map (fun i ->
+    //                         let x = i % width
+    //                         let y = i / width
+    //                         pw x y |> makeRgb24
+    //                     ) [|0..intensities.Length-1|]
+
+    // Image.LoadPixelData(outputPixels, width, height)
 
 [<EntryPoint>]
 let main argv =
@@ -56,15 +65,19 @@ let main argv =
     use img: Image<Rgb24> = Image.Load(@"..\..\Images\Inputs\" + filename)
     img.Mutate(fun x -> x.Grayscale() |> ignore)
 
-    timer.Start()
-
-    let inputPixels = img.GetPixelSpan().ToArray() |> Array.Parallel.map (fun p -> p.R)
-    let out_img = medianFilter inputPixels img.Width img.Height windowSize
-
-    timer.Stop()
-
     use out_file = new System.IO.FileStream(@"..\..\Images\Outputs\naive_" + System.IO.Path.GetFileNameWithoutExtension(filename) +
                     "_" + string windowSize +  ".png", FileMode.OpenOrCreate)
+
+    let mutable out_img = null
+
+    for _ in 1..numIterations do
+
+        timer.Start()
+
+        let inputPixels = img.GetPixelSpan().ToArray() |> Array.Parallel.map (fun p -> p.R)
+        out_img <- medianFilter inputPixels img.Width img.Height windowSize
+
+        timer.Stop()
 
     let pngenc = PngEncoder()
     pngenc.ColorType <- PngColorType.Rgb
