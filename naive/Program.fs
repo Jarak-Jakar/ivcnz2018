@@ -17,22 +17,22 @@ let accessClampedArray (arr: 'a[]) width height x y =
     else
         Some(arr.[x + width * y])
 
-let findMedian l =
-    let ls = List.sort l
-    ls.[(List.length l) / 2]
+let findMedian (l: 'a[]) =
+    Array.sortInPlace l
+    l.[(Array.length l) / 2]
 
 let processWindow clampedArrayFunc windowSize x y =
-    let mutable intensities = List.Empty
     let posBound = (windowSize - 1) / 2
     let negBound = -posBound
-    for z in negBound..posBound do
+    [| for z in negBound..posBound do
         for w in negBound..posBound do
-            intensities <- (clampedArrayFunc (x + z) (y + w)) :: intensities
-    List.choose id intensities |> findMedian
+            match clampedArrayFunc (x + z) (y + w) with
+            | Some v -> yield v
+            | None -> () |] |> findMedian
 
 let makeRgb24 r = Rgb24(r, r, r)
 
-let medianFilter intensities width height windowSize = 
+let medianFilter intensities width height windowSize =
     let ac = accessClampedArray intensities width height
     let pw = processWindow ac windowSize
 
@@ -55,13 +55,16 @@ let main argv =
 
     use img: Image<Rgb24> = Image.Load(@"..\..\Images\Inputs\" + filename)
     img.Mutate(fun x -> x.Grayscale() |> ignore)
+    let mutable out_img = null
 
-    timer.Start()
+    for _ in 0..numIterations do
 
-    let inputPixels = img.GetPixelSpan().ToArray() |> Array.Parallel.map (fun p -> p.R)
-    let out_img = medianFilter inputPixels img.Width img.Height windowSize
+        timer.Start()
 
-    timer.Stop()
+        let inputPixels = img.GetPixelSpan().ToArray() |> Array.Parallel.map (fun p -> p.R)
+        out_img <- medianFilter inputPixels img.Width img.Height windowSize
+
+        timer.Stop()
 
     use out_file = new System.IO.FileStream(@"..\..\Images\Outputs\naive_" + System.IO.Path.GetFileNameWithoutExtension(filename) +
                     "_" + string windowSize +  ".png", FileMode.OpenOrCreate)
