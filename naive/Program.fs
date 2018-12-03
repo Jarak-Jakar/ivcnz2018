@@ -8,6 +8,7 @@ open SixLabors.Memory
 open SixLabors.ImageSharp.Processing
 open SixLabors.ImageSharp.Formats.Png
 open System.IO
+open Microsoft.FSharp.Core.OptimizedClosures
 
 let timer = System.Diagnostics.Stopwatch()
 
@@ -21,25 +22,26 @@ let findMedian (l: 'a[]) =
     Array.sortInPlace l
     l.[(Array.length l) / 2]
 
-let processWindow clampedArrayFunc windowSize x y =
+let processWindow (clampedArrayFunc: FSharpFunc<_, _, _>) windowSize x y =
+    //let ac = FSharpFunc<_, _, _>.Adapt clampedArrayFunc
     let posBound = (windowSize - 1) / 2
     let negBound = -posBound
     [| for z in negBound..posBound do
         for w in negBound..posBound do
-            match clampedArrayFunc (x + z) (y + w) with
+            match clampedArrayFunc.Invoke((x + z), (y + w)) with
             | Some v -> yield v
             | None -> () |] |> findMedian
 
 let makeRgb24 r = Rgb24(r, r, r)
 
 let medianFilter intensities width height windowSize =
-    let ac = accessClampedArray intensities width height
-    let pw = processWindow ac windowSize
+    let ac = accessClampedArray intensities width height |> FSharpFunc<_,_,_>.Adapt
+    let pw = processWindow ac windowSize |> FSharpFunc<_, _, _>.Adapt
 
     let outputPixels = Array.Parallel.map (fun i ->
                             let x = i % width
                             let y = i / width
-                            pw x y |> makeRgb24
+                            pw.Invoke(x, y) |> makeRgb24
                         ) [|0..intensities.Length-1|]
 
     Image.LoadPixelData(outputPixels, width, height)
