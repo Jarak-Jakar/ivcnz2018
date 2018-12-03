@@ -23,14 +23,15 @@ let findMedian (l: 'a[]) =
     l.[(Array.length l) / 2]
 
 let processWindow (clampedArrayFunc: FSharpFunc<_, _, _>) windowSize x y =
-    //let ac = FSharpFunc<_, _, _>.Adapt clampedArrayFunc
+    let meds = Array.zeroCreate (windowSize * windowSize)
     let posBound = (windowSize - 1) / 2
     let negBound = -posBound
-    [| for z in negBound..posBound do
+    for z in negBound..posBound do
         for w in negBound..posBound do
             match clampedArrayFunc.Invoke((x + z), (y + w)) with
-            | Some v -> yield v
-            | None -> () |] |> findMedian
+            | Some v -> meds.[(z + posBound) * windowSize + (w + posBound)] <- v
+            | None -> ()
+    findMedian meds
 
 let makeRgb24 r = Rgb24(r, r, r)
 
