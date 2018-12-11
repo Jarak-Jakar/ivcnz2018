@@ -28,10 +28,11 @@ let processWindow (clampedArrayFunc: FSharpFunc<_, _, _>) windowSize x y =
     let negBound = -posBound
     for z in negBound..posBound do
         for w in negBound..posBound do
-            match clampedArrayFunc.Invoke((x + z), (y + w)) with
+            (* match clampedArrayFunc.Invoke((x + z), (y + w)) with
             | Some v -> meds.[(z + posBound) * windowSize + (w + posBound)] <- v
-            | None -> ()
-    findMedian meds
+            | None -> () *)
+            meds.[(z + posBound) * windowSize + (w + posBound)] <- clampedArrayFunc.Invoke((x + z), (y + w))
+    Array.choose id meds |> findMedian
 
 let makeRgb24 r = Rgb24(r, r, r)
 
@@ -39,7 +40,7 @@ let medianFilter intensities width height windowSize =
     let ac = accessClampedArray intensities width height |> FSharpFunc<_,_,_>.Adapt
     let pw = processWindow ac windowSize |> FSharpFunc<_, _, _>.Adapt
 
-    let outputPixels = Array.Parallel.map (fun i ->
+    let outputPixels = Array.Parallel.map (fun i -> // These calculations are fixed for the whole array.  Could maybe do some vectorisation of them?
                             let x = i % width
                             let y = i / width
                             pw.Invoke(x, y) |> makeRgb24
