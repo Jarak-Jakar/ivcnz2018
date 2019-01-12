@@ -3,22 +3,43 @@ package main
 import (
 	"image"
 	"image/color"
+	"image/png"
 	_ "image/png"
 	"log"
 	"os"
 	"sort"
 )
 
+func min(x, y int) int {
+	if x < y {
+		return x
+	}
+	return y
+}
+
+func max(x, y int) int {
+	if x > y {
+		return x
+	}
+	return y
+}
+
+func check(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
 func toGrayscale(input image.Image) *image.Gray {
 	size := input.Bounds().Size()
 	output := image.NewGray(input.Bounds())
 
-	for i := 0; i < size.X; i++ {
-		for j := 0; j < size.Y; j++ {
+	for y := input.Bounds().Min.Y; y < size.Y; y++ {
+		for x := input.Bounds().Min.X; x < size.X; x++ {
 			//output.SetGray(i, j, color.GrayModel.Convert(input.At(i, j)))
-			op := input.At(i, j)
+			op := input.At(x, y)
 			g := color.GrayModel.Convert(op)
-			output.Set(i, j, g)
+			output.Set(x, y, g)
 		}
 	}
 
@@ -27,41 +48,52 @@ func toGrayscale(input image.Image) *image.Gray {
 
 func filterOnWindow(img *image.Gray, x, y, windowSize int) color.Gray {
 	mod := windowSize / 2
-	uhb := x + mod
-	lhb := x - mod
-	uvb := y + mod
-	lvb := y - mod
+	uhb := min(img.Bounds().Max.X, x+mod+1)
+	lhb := max(img.Bounds().Min.X, x-mod)
+	uvb := min(img.Bounds().Max.Y, y+mod+1)
+	lvb := max(img.Bounds().Min.Y, y-mod)
 
-	si := img.SubImage(image.Rect(lhb, uhb, lvb, uvb)).(*image.Gray)
+	//log.Printf("mod is %d, uhb is %d, lhb is %d, uvb is %d, lvb is %d\n", mod, uhb, lhb, uvb, lvb)
+
+	si := img.SubImage(image.Rect(lhb, lvb, uhb, uvb)).(*image.Gray)
+	//log.Printf("si: %v\n", si)
 	sip := si.Pix
 	sort.Slice(sip, func(i, j int) bool {
 		return sip[i] < sip[j]
 	})
 
+	log.Printf("length of sip is %d\n", len(sip))
+
 	return color.Gray{sip[len(sip)/2]}
 }
 
 func main() {
-	reader, err := os.Open("testdata/video-001.q50.420.jpeg")
-	if err != nil {
-		log.Fatal(err)
-	}
+	reader, err := os.Open(`D:\Users\jcoo092\Writing\2018\IVCNZ18\Images\Inputs\very small_noisy.png`)
+	check(err)
 	defer reader.Close()
 
 	img, _, err := image.Decode(reader)
-	if err != nil {
-		log.Fatal(err)
-	}
+	check(err)
 
 	grayImg := toGrayscale(img)
 	outputImage := image.NewGray(grayImg.Bounds())
 
-	size := outputImage.Bounds().Size()
+	//size := outputImage.Bounds().Size()
 	windowSize := 3
 
-	for i := 0; i < size.X; i++ {
-		for j := 0; j < size.Y; j++ {
-			outputImage.Set(i, j, filterOnWindow(grayImg, i, j, windowSize))
+	maxX := outputImage.Bounds().Max.X
+	maxY := outputImage.Bounds().Max.Y
+
+	for y := outputImage.Bounds().Min.Y; y < maxY; y++ {
+		for x := outputImage.Bounds().Min.X; x < maxX; x++ {
+			outputImage.Set(x, y, filterOnWindow(grayImg, x, y, windowSize))
 		}
 	}
+
+	fg, err := os.Create(`D:\Users\jcoo092\Writing\2018\IVCNZ18\Images\Outputs\go_very_small_noisy.png`)
+	defer fg.Close()
+	check(err)
+	err = png.Encode(fg, outputImage)
+	check(err)
+
 }
