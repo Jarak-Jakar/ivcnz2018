@@ -52,8 +52,29 @@ func filterOnWindow(img *image.Gray, x, y, windowSize int) color.Gray {
 	lhb := max(img.Bounds().Min.X, x-mod)
 	uvb := min(img.Bounds().Max.Y, y+mod+1)
 	lvb := max(img.Bounds().Min.Y, y-mod)
+	stride := img.Stride
+	pix := img.Pix
 
-	//log.Printf("mod is %d, uhb is %d, lhb is %d, uvb is %d, lvb is %d\n", mod, uhb, lhb, uvb, lvb)
+	//sliceSize := (uhb - lhb) * (uvb - lvb)
+	pixels := make([]uint8, 0)
+	ystride := 0
+
+	//log.Printf("length of pixels is %d\n", len(pixels))
+
+	for y := lvb; y < uvb; y++ {
+		ystride = y * stride
+		pixels = append(pixels, pix[lhb+ystride:uhb+ystride]...)
+	}
+
+	//log.Printf("length of pixels is %d\n", len(pixels))
+
+	sort.Slice(pixels, func(i, j int) bool {
+		return pixels[i] < pixels[j]
+	})
+
+	return color.Gray{pixels[len(pixels)/2]}
+
+	/* //log.Printf("mod is %d, uhb is %d, lhb is %d, uvb is %d, lvb is %d\n", mod, uhb, lhb, uvb, lvb)
 
 	si := img.SubImage(image.Rect(lhb, lvb, uhb, uvb)).(*image.Gray)
 	//log.Printf("si: %v\n", si)
@@ -64,7 +85,21 @@ func filterOnWindow(img *image.Gray, x, y, windowSize int) color.Gray {
 
 	log.Printf("length of sip is %d\n", len(sip))
 
-	return color.Gray{sip[len(sip)/2]}
+	return color.Gray{sip[len(sip)/2]} */
+}
+
+func medianFilter(img *image.Gray, windowSize int) *image.Gray {
+	outputImage := image.NewGray(img.Bounds())
+
+	maxX := outputImage.Bounds().Max.X
+	maxY := outputImage.Bounds().Max.Y
+
+	for y := outputImage.Bounds().Min.Y; y < maxY; y++ {
+		for x := outputImage.Bounds().Min.X; x < maxX; x++ {
+			outputImage.Set(x, y, filterOnWindow(img, x, y, windowSize))
+		}
+	}
+	return outputImage
 }
 
 func main() {
@@ -75,11 +110,12 @@ func main() {
 	img, _, err := image.Decode(reader)
 	check(err)
 
+	windowSize := 3
+
 	grayImg := toGrayscale(img)
-	outputImage := image.NewGray(grayImg.Bounds())
+	/* outputImage := image.NewGray(grayImg.Bounds())
 
 	//size := outputImage.Bounds().Size()
-	windowSize := 3
 
 	maxX := outputImage.Bounds().Max.X
 	maxY := outputImage.Bounds().Max.Y
@@ -88,7 +124,9 @@ func main() {
 		for x := outputImage.Bounds().Min.X; x < maxX; x++ {
 			outputImage.Set(x, y, filterOnWindow(grayImg, x, y, windowSize))
 		}
-	}
+	} */
+
+	outputImage := medianFilter(grayImg, windowSize)
 
 	fg, err := os.Create(`D:\Users\jcoo092\Writing\2018\IVCNZ18\Images\Outputs\go_very_small_noisy.png`)
 	defer fg.Close()
