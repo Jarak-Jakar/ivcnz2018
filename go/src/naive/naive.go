@@ -1,13 +1,14 @@
-package main
+package naive
 
 import (
 	"image"
 	"image/color"
 	"image/png"
-	_ "image/png"
 	"log"
 	"os"
+	"path/filepath"
 	"sort"
+	"strconv"
 )
 
 func min(x, y int) int {
@@ -30,13 +31,13 @@ func check(err error) {
 	}
 }
 
-func toGrayscale(input image.Image) *image.Gray {
+// ToGrayscale takes an arbitrary-color image, and converts it to 8-bit grayscale
+func ToGrayscale(input image.Image) *image.Gray {
 	size := input.Bounds().Size()
 	output := image.NewGray(input.Bounds())
 
 	for y := input.Bounds().Min.Y; y < size.Y; y++ {
 		for x := input.Bounds().Min.X; x < size.X; x++ {
-			//output.SetGray(i, j, color.GrayModel.Convert(input.At(i, j)))
 			op := input.At(x, y)
 			g := color.GrayModel.Convert(op)
 			output.Set(x, y, g)
@@ -55,40 +56,23 @@ func filterOnWindow(img *image.Gray, x, y, windowSize int) color.Gray {
 	stride := img.Stride
 	pix := img.Pix
 
-	//sliceSize := (uhb - lhb) * (uvb - lvb)
 	pixels := make([]uint8, 0)
 	ystride := 0
-
-	//log.Printf("length of pixels is %d\n", len(pixels))
 
 	for y := lvb; y < uvb; y++ {
 		ystride = y * stride
 		pixels = append(pixels, pix[lhb+ystride:uhb+ystride]...)
 	}
 
-	//log.Printf("length of pixels is %d\n", len(pixels))
-
 	sort.Slice(pixels, func(i, j int) bool {
 		return pixels[i] < pixels[j]
 	})
 
 	return color.Gray{pixels[len(pixels)/2]}
-
-	/* //log.Printf("mod is %d, uhb is %d, lhb is %d, uvb is %d, lvb is %d\n", mod, uhb, lhb, uvb, lvb)
-
-	si := img.SubImage(image.Rect(lhb, lvb, uhb, uvb)).(*image.Gray)
-	//log.Printf("si: %v\n", si)
-	sip := si.Pix
-	sort.Slice(sip, func(i, j int) bool {
-		return sip[i] < sip[j]
-	})
-
-	log.Printf("length of sip is %d\n", len(sip))
-
-	return color.Gray{sip[len(sip)/2]} */
 }
 
-func medianFilter(img *image.Gray, windowSize int) *image.Gray {
+// MedianFilter takes a grayscale image and a window size, then performs a basic median filtering on the image with the given window size
+func MedianFilter(img *image.Gray, windowSize int) *image.Gray {
 	outputImage := image.NewGray(img.Bounds())
 
 	maxX := outputImage.Bounds().Max.X
@@ -103,34 +87,27 @@ func medianFilter(img *image.Gray, windowSize int) *image.Gray {
 }
 
 func main() {
-	reader, err := os.Open(`D:\Users\jcoo092\Writing\2018\IVCNZ18\Images\Inputs\very small_noisy.png`)
+	commandLineArgs := os.Args[1:]
+	windowSize, err := strconv.Atoi(commandLineArgs[0])
 	check(err)
+
+	reader, err := os.Open(commandLineArgs[1])
 	defer reader.Close()
+	check(err)
 
 	img, _, err := image.Decode(reader)
 	check(err)
 
-	windowSize := 3
+	grayImg := ToGrayscale(img)
+	outputImage := MedianFilter(grayImg, windowSize)
 
-	grayImg := toGrayscale(img)
-	/* outputImage := image.NewGray(grayImg.Bounds())
+	outputFilename := filepath.Base(commandLineArgs[1])
+	outputFilename = "go_" + outputFilename
 
-	//size := outputImage.Bounds().Size()
-
-	maxX := outputImage.Bounds().Max.X
-	maxY := outputImage.Bounds().Max.Y
-
-	for y := outputImage.Bounds().Min.Y; y < maxY; y++ {
-		for x := outputImage.Bounds().Min.X; x < maxX; x++ {
-			outputImage.Set(x, y, filterOnWindow(grayImg, x, y, windowSize))
-		}
-	} */
-
-	outputImage := medianFilter(grayImg, windowSize)
-
-	fg, err := os.Create(`D:\Users\jcoo092\Writing\2018\IVCNZ18\Images\Outputs\go_very_small_noisy.png`)
+	fg, err := os.Create(`D:\Users\jcoo092\Writing\2018\IVCNZ18\Images\Outputs\` + outputFilename)
 	defer fg.Close()
 	check(err)
+
 	err = png.Encode(fg, outputImage)
 	check(err)
 
