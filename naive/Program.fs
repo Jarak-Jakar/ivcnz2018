@@ -22,23 +22,34 @@ let findMedian (l: 'a[]) =
     Array.sortInPlace l
     l.[(Array.length l) / 2]
 
-let processWindow (clampedArrayFunc: FSharpFunc<_, _, _>) windowSize x y =
+// let processWindow (clampedArrayFunc: FSharpFunc<_, _, _>) windowSize x y =
+//     let meds = Array.zeroCreate (windowSize * windowSize)
+//     let posBound = (windowSize - 1) / 2
+//     let negBound = -posBound
+//     for z in negBound..posBound do
+//         for w in negBound..posBound do
+//             meds.[(z + posBound) * windowSize + (w + posBound)] <- clampedArrayFunc.Invoke((x + z), (y + w))
+//     Array.choose id meds |> findMedian
+
+let processWindow (intensities: 'a[]) width height windowSize x y =
     let meds = Array.zeroCreate (windowSize * windowSize)
-    let posBound = (windowSize - 1) / 2
-    let negBound = -posBound
-    for z in negBound..posBound do
-        for w in negBound..posBound do
-            (* match clampedArrayFunc.Invoke((x + z), (y + w)) with
-            | Some v -> meds.[(z + posBound) * windowSize + (w + posBound)] <- v
-            | None -> () *)
-            meds.[(z + posBound) * windowSize + (w + posBound)] <- clampedArrayFunc.Invoke((x + z), (y + w))
-    Array.choose id meds |> findMedian
+    let offset = (windowSize - 1) >>> 1
+    let lhb = max 0 (x - offset)
+    let uhb = min width (x + offset)
+    let lvb = max 0 (y - offset)
+    let uvb = min height (y + offset)
+
+    for w in lvb..uvb do
+        for z in lhb..uhb do
+            meds.[(z + offset) * windowSize + (w + offset)] <- intensities.[(x + z) + width * (y + w)]
+    findMedian meds
 
 let makeRgb24 r = Rgb24(r, r, r)
 
-let medianFilter intensities width height windowSize =
-    let ac = accessClampedArray intensities width height |> FSharpFunc<_,_,_>.Adapt
-    let pw = processWindow ac windowSize |> FSharpFunc<_, _, _>.Adapt
+let medianFilter (intensities: byte[]) width height windowSize =
+    //let ac = accessClampedArray intensities width height |> FSharpFunc<_,_,_>.Adapt
+    //let pw = processWindow ac windowSize |> FSharpFunc<_, _, _>.Adapt
+    let pw = processWindow intensities width height windowSize |> FSharpFunc<_, _, _>.Adapt
 
     let outputPixels = Array.Parallel.map (fun i -> // These calculations are fixed for the whole array.  Could maybe do some vectorisation of them?
                             let x = i % width

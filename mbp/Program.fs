@@ -14,10 +14,15 @@ open SixLabors.Memory
 open SixLabors.ImageSharp.Processing
 open SixLabors.ImageSharp.Formats.Png
 
-let agent = MailboxProcessor<byte>.Start(fun inbox ->
-    let neighbours = computeNeighbours i
+let determineMedian intensities = 
+    Array.sortInPlace intensities
+    intensities.[(Array.length intensities) / 2]
+
+let createAgent width height i intensity = MailboxProcessor<byte>.Start(fun inbox ->
+    let neighbours = computeNeighbours width height i
     let receivedIntensities = Array.zeroCreate (windowSize * windowSize)
-    let mutable idx = 0
+    receivedIntensities.[0] <- intensity
+    let mutable idx = 1
     let mutable sentAnswer = false
 
     let rec loop neighbours = async {
@@ -33,13 +38,13 @@ let agent = MailboxProcessor<byte>.Start(fun inbox ->
                 sentAnswer <- true
             
             if sentAnswer && (List.isEmpty neighbours)  then
-                return ()
+                return determineMedian receivedIntensities
             else
                 return! loop neighbours
 
         | None -> 
             if sentAnswer && (List.isEmpty neighbours) then
-                return ()
+                return determineMedian receivedIntensities
             else
                 // post to next neighbour
                 return! loop (List.tail neighbours)
