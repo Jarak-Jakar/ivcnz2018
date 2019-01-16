@@ -19,6 +19,13 @@ let psnr (originalImgPath : string) (denoisedImgPath : string) =
 
     timer.Start()
 
+    // build vectors
+    let vorig = Array.chunkBySize 8 originalImgArr |> Array.map (fun a -> Vector(a))
+    let vdenoise = Array.chunkBySize 8 denoisedImgArr |> Array.map (fun a -> Vector(a))
+    let receiverArr = Array.zip vorig vdenoise |> Array.Parallel.map (fun (a,b) -> a - b) |> Array.Parallel.map (fun d -> d * d)
+                        |> Array.Parallel.map (fun d -> Vector.Dot(d, Vector<int32>.One))
+                        //|> Vector.CopyTo(Array.zeroCreate Vector<int32>.Count))
+
     //let bmax = Byte.MaxValue |> int
     //let max2 = bmax * bmax |> float
     let coefficient = (originalImg.Width * originalImg.Height) |> float |> (/) 1.0
@@ -29,14 +36,15 @@ let psnr (originalImgPath : string) (denoisedImgPath : string) =
 
     (* let diffs = vorig - vdenoise //|> Vector.AsVectorUInt64
     let diffs2 = diffs * diffs *)
-    let diffs2 = vorig - vdenoise |> fun d -> d * d
+    //let diffs2 = vorig - vdenoise |> fun d -> d * d
     //let diffs2 = diffs * diffs
     //let (receiverArr : uint64[]) = Array.zeroCreate originalImgArr.Length
-    let receiverArr = Array.zeroCreate originalImgArr.Length
-    diffs2.CopyTo(receiverArr)
+    //let receiverArr = Array.zeroCreate originalImgArr.Length
+    //diffs2.CopyTo(receiverArr)
     let MSE = Array.sum receiverArr |> float |> (*) coefficient *)
 
-    let MSE = Array.zip originalImgArr denoisedImgArr |> Array.Parallel.map (fun (a,b) -> pown (a - b) 2) |> Array.sum |> float |> (*) coefficient
+    //let MSE = Array.zip originalImgArr denoisedImgArr |> Array.Parallel.map (fun (a,b) -> pown (a - b) 2) |> Array.sum |> float |> (*) coefficient
+    let MSE = Array.sum receiverArr |> float |> (*) coefficient
     //if MSE = 0.0 then printfn "it's zero!"
     //let psnr = max2 / MSE |> log10 |> (*) 10.0 |> fun i -> Math.Round(i, 2) *)
     max2 / MSE |> log10 |> (*) 10.0 |> fun i -> Math.Round(i, 2)
@@ -71,7 +79,7 @@ let main argv =
     let algos = ["Naive"; "Braunl"; "CML"]
 
     //use csvfile = new System.IO.FileStream("psnrs.csv", System.IO.FileMode.OpenOrCreate)
-    use csvfile = new System.IO.StreamWriter(path="psnrs-arr.csv")
+    use csvfile = new System.IO.StreamWriter(path="psnrs-vec2.csv")
     fprintfn csvfile "Algorithm,Image,WindowSize,PSNR,ElapsedTime"
 
     for fn in filenames do
