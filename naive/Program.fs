@@ -73,7 +73,9 @@ let processWindow (intensities: 'a[]) (arrayPool : AgentObjectPool<'a[]>) width 
                         yield intensities.[lhb + ystride .. uhb + ystride]
                 |] |> Array.concat *)
 
-    findMedian meds
+    let res = findMedian meds
+    arrayPool.PutObject(meds)
+    res
 
 let makeRgb24 r = Rgb24(r, r, r)
 
