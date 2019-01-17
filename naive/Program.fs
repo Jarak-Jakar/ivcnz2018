@@ -10,7 +10,12 @@ open SixLabors.ImageSharp.Formats.Png
 open System.IO
 open Microsoft.FSharp.Core.OptimizedClosures
 open System
-open AsyncObjectPool
+open System.Buffers
+open System.Buffers
+open System.Buffers
+open System.Buffers
+open System.Buffers
+open System.Buffers
 
 let timer = System.Diagnostics.Stopwatch()
 
@@ -20,7 +25,7 @@ let accessClampedArray (arr: 'a[]) width height x y =
     else
         Some(arr.[x + width * y])
 
-let findMedian (l: 'a[]) =
+let inline findMedian (l: 'a[]) =
     Array.sortInPlace l
     l.[(Array.length l)>>>1]
 
@@ -32,17 +37,18 @@ let findMedian (l: 'a[]) =
             meds.[(z + posBound) * windowSize + (w + posBound)] <- clampedArrayFunc.Invoke((x + z), (y + w))
     Array.choose id meds |> findMedian *)
 
-let processWindow (intensities: 'a[]) (arrayPool : AgentObjectPool<'a[]>) width height offset windowSize x y =
+let processWindow (intensities: 'a[]) (myArrayPool: ArrayPool<'a>) width height offset windowSize x y =
 
     let lhb = max 0 (x - offset)
     let uhb = min (width - 1) (x + offset)
     let lvb = max 0 (y - offset)
     let uvb = min (height - 1) (y + offset)
+    let getFromPool = ((uhb - lhb + 1) * (uvb - lvb + 1)) = windowSize * windowSize
 
     let meds = Array.zeroCreate ((uhb - lhb + 1) * (uvb - lvb + 1))
     (* let meds =
-        if ((uhb - lhb + 1) * (uvb - lvb + 1)) = windowSize then
-            arrayPool.GetObject().Result
+        if getFromPool then
+            myArrayPool.Rent(windowSize * windowSize)
         else
             Array.zeroCreate ((uhb - lhb + 1) * (uvb - lvb + 1)) *)
 
@@ -73,13 +79,14 @@ let processWindow (intensities: 'a[]) (arrayPool : AgentObjectPool<'a[]>) width 
                         yield intensities.[lhb + ystride .. uhb + ystride]
                 |] |> Array.concat *)
 
+    //findMedian meds
     let res = findMedian meds
-    arrayPool.PutObject(meds)
+    //if getFromPool then myArrayPool.Return(meds)
     res
 
 let makeRgb24 r = Rgb24(r, r, r)
 
-let medianFilter (intensities: byte[]) arrayPool width height windowSize =
+let medianFilter (intensities: byte[]) myArrayPool width height windowSize =
     //printfn "offset is %d" offset
 
     let offset = (windowSize - 1) >>> 1 // divide by 2
@@ -87,10 +94,10 @@ let medianFilter (intensities: byte[]) arrayPool width height windowSize =
     (* let ac = accessClampedArray intensities width height |> FSharpFunc<_,_,_>.Adapt
     let pw = processWindow ac windowSize offset |> FSharpFunc<_, _, _>.Adapt *)
 
-    let pw = processWindow intensities arrayPool width height offset windowSize |> FSharpFunc<_, _, _>.Adapt
+    let pw = processWindow intensities myArrayPool width height offset windowSize |> FSharpFunc<_, _, _>.Adapt
 
-    //let outputPixels = Array.Parallel.map (fun i -> // These calculations are fixed for the whole array.  Could maybe do some vectorisation of them?
     let outputPixels = Array.Parallel.map (fun i -> // These calculations are fixed for the whole array.  Could maybe do some vectorisation of them?
+    //let outputPixels = Array.map (fun i -> // These calculations are fixed for the whole array.  Could maybe do some vectorisation of them?
                             let x = i % width
                             let y = i / width
                             pw.Invoke(x, y) |> makeRgb24
@@ -109,9 +116,8 @@ let main argv =
 
     Configuration.Default.MemoryAllocator <- ArrayPoolMemoryAllocator.CreateWithModeratePooling()
 
-    let makeArray = new Func<byte[]>(fun () -> Array.zeroCreate windowSize)
-
-    let myObjectPool = new AgentObjectPool<byte[]> (makeArray, Environment.ProcessorCount)
+    let myArrayPool = ArrayPool.Create(windowSize * windowSize, 2 * Environment.ProcessorCount)
+    //let myArrayPool = ArrayPool.Shared
 
     use img: Image<Rgb24> = Image.Load(@"..\..\Images\Inputs\" + filename)
     img.Mutate(fun x -> x.Grayscale() |> ignore)
@@ -122,7 +128,7 @@ let main argv =
         timer.Start()
 
         let inputPixels = img.GetPixelSpan().ToArray() |> Array.Parallel.map (fun p -> p.R)
-        out_img <- medianFilter inputPixels myObjectPool img.Width img.Height windowSize
+        out_img <- medianFilter inputPixels myArrayPool img.Width img.Height windowSize
 
         timer.Stop()
 
