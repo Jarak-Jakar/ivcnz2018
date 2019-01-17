@@ -33,7 +33,7 @@ let processWindow (intensities: 'a[]) width height offset x y =
             meds.[idx] <- intensities.[z + width * w]
             idx <- idx + 1
 
-    findMedian meds
+    meds
 
 let makeRgb24 r = Rgb24(r, r, r)
 
@@ -47,8 +47,19 @@ let medianFilter (intensities: byte[]) width height windowSize =
     //let outputPixels = Array.map (fun i -> // These calculations are fixed for the whole array.  Could maybe do some vectorisation of them?
                             let x = i % width
                             let y = i / width
-                            pw.Invoke(x, y) |> makeRgb24
+                            pw.Invoke(x, y) |> findMedian |> makeRgb24
                         ) [|0..intensities.Length-1|]
+
+    (* let xyarr = [|
+                    for y in 0..(height - 1) do
+                        for x in 0..(width - 1) do
+                            yield (x, y)
+                |]
+
+    let outputPixels = Array.Parallel.map (fun (x, y) -> // These calculations are fixed for the whole array.  Could maybe do some vectorisation of them?
+    //let outputPixels = Array.map (fun i -> // These calculations are fixed for the whole array.  Could maybe do some vectorisation of them?
+                            pw.Invoke(x, y) |> findMedian |> makeRgb24
+                        ) xyarr *)
 
     Image.LoadPixelData(outputPixels, width, height)
 
