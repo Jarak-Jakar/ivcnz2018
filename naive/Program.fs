@@ -11,11 +11,6 @@ open System.IO
 open Microsoft.FSharp.Core.OptimizedClosures
 open System
 open System.Buffers
-open System.Buffers
-open System.Buffers
-open System.Buffers
-open System.Buffers
-open System.Buffers
 
 let timer = System.Diagnostics.Stopwatch()
 
@@ -37,20 +32,14 @@ let inline findMedian (l: 'a[]) =
             meds.[(z + posBound) * windowSize + (w + posBound)] <- clampedArrayFunc.Invoke((x + z), (y + w))
     Array.choose id meds |> findMedian *)
 
-let processWindow (intensities: 'a[]) (myArrayPool: ArrayPool<'a>) width height offset windowSize x y =
+let processWindow (intensities: 'a[]) width height offset x y =
 
     let lhb = max 0 (x - offset)
     let uhb = min (width - 1) (x + offset)
     let lvb = max 0 (y - offset)
     let uvb = min (height - 1) (y + offset)
-    let getFromPool = ((uhb - lhb + 1) * (uvb - lvb + 1)) = windowSize * windowSize
 
     let meds = Array.zeroCreate ((uhb - lhb + 1) * (uvb - lvb + 1))
-    (* let meds =
-        if getFromPool then
-            myArrayPool.Rent(windowSize * windowSize)
-        else
-            Array.zeroCreate ((uhb - lhb + 1) * (uvb - lvb + 1)) *)
 
     let mutable idx = 0
 
@@ -81,12 +70,11 @@ let processWindow (intensities: 'a[]) (myArrayPool: ArrayPool<'a>) width height 
 
     //findMedian meds
     let res = findMedian meds
-    //if getFromPool then myArrayPool.Return(meds)
     res
 
 let makeRgb24 r = Rgb24(r, r, r)
 
-let medianFilter (intensities: byte[]) myArrayPool width height windowSize =
+let medianFilter (intensities: byte[]) width height windowSize =
     //printfn "offset is %d" offset
 
     let offset = (windowSize - 1) >>> 1 // divide by 2
@@ -94,7 +82,7 @@ let medianFilter (intensities: byte[]) myArrayPool width height windowSize =
     (* let ac = accessClampedArray intensities width height |> FSharpFunc<_,_,_>.Adapt
     let pw = processWindow ac windowSize offset |> FSharpFunc<_, _, _>.Adapt *)
 
-    let pw = processWindow intensities myArrayPool width height offset windowSize |> FSharpFunc<_, _, _>.Adapt
+    let pw = processWindow intensities width height offset |> FSharpFunc<_, _, _>.Adapt
 
     let outputPixels = Array.Parallel.map (fun i -> // These calculations are fixed for the whole array.  Could maybe do some vectorisation of them?
     //let outputPixels = Array.map (fun i -> // These calculations are fixed for the whole array.  Could maybe do some vectorisation of them?
@@ -128,7 +116,7 @@ let main argv =
         timer.Start()
 
         let inputPixels = img.GetPixelSpan().ToArray() |> Array.Parallel.map (fun p -> p.R)
-        out_img <- medianFilter inputPixels myArrayPool img.Width img.Height windowSize
+        out_img <- medianFilter inputPixels img.Width img.Height windowSize
 
         timer.Stop()
 
