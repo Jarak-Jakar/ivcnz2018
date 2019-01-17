@@ -54,14 +54,18 @@ func filterOnWindow(img *image.Gray, x, y, windowSize int) color.Gray {
 	uvb := min(img.Bounds().Max.Y, y+mod+1)
 	lvb := max(img.Bounds().Min.Y, y-mod)
 	stride := img.Stride
+	slicesize := (uhb - lhb) * (uvb - lvb)
 	pix := img.Pix
 
-	pixels := make([]uint8, 0)
-	ystride := 0
+	pixels := make([]uint8, slicesize)
+	index := 0
 
 	for y := lvb; y < uvb; y++ {
-		ystride = y * stride
-		pixels = append(pixels, pix[lhb+ystride:uhb+ystride]...)
+		/* ystride = y * stride
+		pixels = append(pixels, pix[lhb+ystride:uhb+ystride]...) */
+		for x := lhb; x < uhb; x++ {
+			pixels[index] = pix[x+y*stride]
+		}
 	}
 
 	sort.Slice(pixels, func(i, j int) bool {
