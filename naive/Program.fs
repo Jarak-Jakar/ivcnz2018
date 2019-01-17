@@ -35,7 +35,33 @@ let processWindow (intensities: 'a[]) width height offset x y =
 
     meds
 
-let makeRgb24 r = Rgb24(r, r, r)
+(* let processWindow (intensities: ReadOnlyMemory<'a>) width height offset x y =
+
+    let lhb = max 0 (x - offset)
+    let uhb = min (width - 1) (x + offset)
+    let lvb = max 0 (y - offset)
+    let uvb = min (height - 1) (y + offset)
+
+    let rowsize = uhb - lhb + 1
+
+    //printfn "x = %d, y = %d, offset = %d, rowsize = %d" x y offset rowsize
+
+    let meds = Array.zeroCreate (rowsize * (uvb - lvb + 1))
+
+    //printfn "intensities' length is %d" intensities.Length
+
+    let mutable idx = 0
+
+    for w in lvb..uvb do
+            //meds.[idx] <- intensities.[z + width * w]
+            //let sourceArray = intensities.Slice(lhb + width * w, rowsize).ToArray()
+            //printfn "rowsize = %d, sa length = %d" rowsize sourceArray.Length
+            Array.blit (intensities.Slice(lhb + width * w, rowsize).ToArray()) 0 meds idx rowsize
+            idx <- idx + rowsize
+
+    meds *)
+
+let inline makeRgb24 r = Rgb24(r, r, r)
 
 let medianFilter (intensities: byte[]) width height windowSize =
 
@@ -50,18 +76,22 @@ let medianFilter (intensities: byte[]) width height windowSize =
                             pw.Invoke(x, y) |> findMedian |> makeRgb24
                         ) [|0..intensities.Length-1|]
 
-    (* let xyarr = [|
-                    for y in 0..(height - 1) do
-                        for x in 0..(width - 1) do
-                            yield (x, y)
-                |]
-
-    let outputPixels = Array.Parallel.map (fun (x, y) -> // These calculations are fixed for the whole array.  Could maybe do some vectorisation of them?
-    //let outputPixels = Array.map (fun i -> // These calculations are fixed for the whole array.  Could maybe do some vectorisation of them?
-                            pw.Invoke(x, y) |> findMedian |> makeRgb24
-                        ) xyarr *)
-
     Image.LoadPixelData(outputPixels, width, height)
+
+(* let medianFilter (intensities: ReadOnlyMemory<byte>) width height windowSize =
+
+    let offset = (windowSize - 1) >>> 1 // divide by 2
+
+    let pw = processWindow intensities width height offset |> FSharpFunc<_, _, _>.Adapt
+
+    let outputPixels = Array.Parallel.map (fun i -> // These calculations are fixed for the whole array.  Could maybe do some vectorisation of them?
+    //let outputPixels = Array.map (fun i -> // These calculations are fixed for the whole array.  Could maybe do some vectorisation of them?
+                            let x = i % width
+                            let y = i / width
+                            pw.Invoke(x, y) |> findMedian |> makeRgb24
+                        ) [|0..intensities.Length-1|]
+
+    Image.LoadPixelData(outputPixels, width, height) *)
 
 [<EntryPoint>]
 let main argv =
@@ -81,6 +111,7 @@ let main argv =
         timer.Start()
 
         let inputPixels = img.GetPixelSpan().ToArray() |> Array.Parallel.map (fun p -> p.R)
+        //let inputPixels = new ReadOnlyMemory<byte>(img.GetPixelSpan().ToArray() |> Array.Parallel.map (fun p -> p.R))
         out_img <- medianFilter inputPixels img.Width img.Height windowSize
 
         timer.Stop()
