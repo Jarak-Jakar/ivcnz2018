@@ -5,6 +5,8 @@
     <ServerGarbageCollection>true</ServerGarbageCollection>
     <Platforms>x64</Platforms>
     <Configuration>Release</Configuration>
+    <DebugType>pdbonly</DebugType>
+    <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <!--<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <PlatformTarget>x64</PlatformTarget>

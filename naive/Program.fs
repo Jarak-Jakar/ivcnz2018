@@ -10,7 +10,6 @@ open SixLabors.ImageSharp.Formats.Png
 open System.IO
 open Microsoft.FSharp.Core.OptimizedClosures
 open System
-open System
 
 let timer = System.Diagnostics.Stopwatch()
 
