@@ -7,9 +7,9 @@
     <Configuration>Release</Configuration>
   </PropertyGroup>
 
-  <!--<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <PlatformTarget>x64</PlatformTarget>
-  </PropertyGroup>-->
+  </PropertyGroup>
 
   <ItemGroup>
     <Compile Include="Program.fs" />
