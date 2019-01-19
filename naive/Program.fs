@@ -13,26 +13,27 @@ open System
 
 let timer = System.Diagnostics.Stopwatch()
 
-let shellSortHibbardInPlace (arr: byte[]) =
-    let mutable temp = 0uy
+let insertionSortInPlace (A: byte[]) =
+    let arrLength = Array.length A
+    let mutable x = 0uy
+    let mutable i = 1
     let mutable j = 0
-    let arrLength = (Array.length arr) - 1
 
-    for gap in [|57; 23; 10; 4; 1|] do
-        for i = gap to arrLength do
-            temp <- arr.[i]
+    while i < arrLength do
+        x <- A.[i]
+        j <- i - 1
 
-            j <- i
-            while j >= gap && arr.[j - gap] > temp do
-                arr.[j] <- arr.[j - gap]
-                j <- j - gap
+        while j >= 0 && A.[j] > x do
+            A.[j+1] <- A.[j]
+            j <- j - 1
 
-            arr.[j] <- temp
+        A.[j + 1] <- x
+        i <- i + 1
 
 
 let inline findMedian (l: 'a[]) =
-    //Array.sortInPlace l
-    shellSortHibbardInPlace l
+    Array.sortInPlace l
+    //insertionSortInPlace l
     l.[(Array.length l)>>>1]
 
 let processWindow (intensities: 'a[]) width height offset x y =
