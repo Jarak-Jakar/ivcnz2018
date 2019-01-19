@@ -13,27 +13,26 @@ open System
 
 let timer = System.Diagnostics.Stopwatch()
 
-// Pretty much directly copied from the Wikipedia page on Insertion Sort (https://en.wikipedia.org/wiki/Insertion_sort)
-// as it was on 19 January 2019
-// Note that this shouldn't be used outside of this context, since it uses Unchecked.defaultof<'a> which can easily blow up
-// on non-value types
-let insertionSortInPlace (arr: 'a[]) =
-    let arrLength = (Array.length arr) - 1
+let shellSortHibbardInPlace (arr: 'a[]) =
     let mutable temp = Unchecked.defaultof<'a>
     let mutable j = 0
-    for i = 1 to arrLength do
-        temp <- arr.[i]
+    let arrLength = (Array.length arr) - 1
 
-        while j >= 0 && arr.[j] > temp do
-            arr.[j+1] <- arr.[j]
-            j <- j - 1
+    for gap in [|63; 31; 15; 7; 3; 1|] do
+        for i = gap to arrLength do
+            temp <- arr.[i]
 
-        arr.[j + 1] <- temp
+            j <- i
+            while j >= gap && arr.[j - gap] > temp do
+                arr.[j] <- arr.[j - gap]
+                j <- j - gap
+
+            arr.[j] <- temp
 
 
 let inline findMedian (l: 'a[]) =
-    Array.sortInPlace l
-    //insertionSortInPlace l
+    //Array.sortInPlace l
+    shellSortHibbardInPlace l
     l.[(Array.length l)>>>1]
 
 let processWindow (intensities: 'a[]) width height offset x y =
