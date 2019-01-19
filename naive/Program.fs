@@ -13,12 +13,12 @@ open System
 
 let timer = System.Diagnostics.Stopwatch()
 
-let shellSortHibbardInPlace (arr: 'a[]) =
-    let mutable temp = Unchecked.defaultof<'a>
+let shellSortHibbardInPlace (arr: byte[]) =
+    let mutable temp = 0uy
     let mutable j = 0
     let arrLength = (Array.length arr) - 1
 
-    for gap in [|63; 31; 15; 7; 3; 1|] do
+    for gap in [|57; 23; 10; 4; 1|] do
         for i = gap to arrLength do
             temp <- arr.[i]
 
