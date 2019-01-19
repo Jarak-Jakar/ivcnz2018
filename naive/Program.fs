@@ -13,27 +13,8 @@ open System
 
 let timer = System.Diagnostics.Stopwatch()
 
-let insertionSortInPlace (A: byte[]) =
-    let arrLength = Array.length A
-    let mutable x = 0uy
-    let mutable i = 1
-    let mutable j = 0
-
-    while i < arrLength do
-        x <- A.[i]
-        j <- i - 1
-
-        while j >= 0 && A.[j] > x do
-            A.[j+1] <- A.[j]
-            j <- j - 1
-
-        A.[j + 1] <- x
-        i <- i + 1
-
-
 let inline findMedian (l: 'a[]) =
     Array.sortInPlace l
-    //insertionSortInPlace l
     l.[(Array.length l)>>>1]
 
 let processWindow (intensities: 'a[]) width height offset x y =
