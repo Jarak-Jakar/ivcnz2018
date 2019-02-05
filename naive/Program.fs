@@ -1,5 +1,5 @@
 ﻿// Learn more about F# at http://fsharp.org
-module naive
+module Naive
 
 open SixLabors.ImageSharp
 open SixLabors.ImageSharp.Advanced
@@ -8,49 +8,62 @@ open SixLabors.Memory
 open SixLabors.ImageSharp.Processing
 open SixLabors.ImageSharp.Formats.Png
 open System.IO
-open Microsoft.FSharp.Core.OptimizedClosures
 open System
+
+type Globals<'a> = {
+    width: int // Image width
+    height: int // Image height
+    windowSize: int // Size of rectangular window to filter over
+    offset: int // The distance to either side of the central pixel (vertically and horizontally) to search for the median
+    intensities: 'a[] // The single-value intensity measures for each pixel
+}
+
+type Coordinate = int * int
+
+type ProcessWindow<'a> = Globals<'a> -> Coordinate -> 'a[]
+
+type MedianFilter<'a> = Globals<'a> -> Image<Rgb24>
 
 let timer = System.Diagnostics.Stopwatch()
 
-let inline findMedian (l: 'a[]) =
-    Array.sortInPlace l
-    l.[(Array.length l)>>>1]
+let inline findMedian (medianCandidates: ^a[]) =
+    Array.sortInPlace medianCandidates
+    medianCandidates.[(Array.length medianCandidates)>>>1]
 
-let processWindow (intensities: 'a[]) width height offset x y =
+let processWindow globals coord =
+    let x,y = coord
 
-    let lhb = max 0 (x - offset)
-    let uhb = min (width - 1) (x + offset)
-    let lvb = max 0 (y - offset)
-    let uvb = min (height - 1) (y + offset)
+    let lhb = max 0 (x - globals.offset) // Lower horizontal bound
+    let uhb = min (globals.width - 1) (x + globals.offset) // Upper horizontal bound
+    let lvb = max 0 (y - globals.offset) // Lower vertical bound
+    let uvb = min (globals.height - 1) (y + globals.offset) // Upper vertical bound
 
-    let meds = Array.zeroCreate ((uhb - lhb + 1) * (uvb - lvb + 1))
+    let medianCandidates = Array.zeroCreate ((uhb - lhb + 1) * (uvb - lvb + 1))
 
     let mutable idx = 0
 
     for w in lvb..uvb do
         for z in lhb..uhb do
-            meds.[idx] <- intensities.[z + width * w]
+            medianCandidates.[idx] <- globals.intensities.[z + globals.width * w]
             idx <- idx + 1
 
-    meds
+    medianCandidates
 
 let inline makeRgb24 r = Rgb24(r, r, r)
 
-let medianFilter (intensities: byte[]) width height windowSize =
+let medianFilter globals =
 
-    let offset = (windowSize - 1) >>> 1 // divide by 2
-
-    let pw = processWindow intensities width height offset |> FSharpFunc<_, _, _>.Adapt
+    let pw = processWindow globals
 
     let outputPixels = Array.Parallel.map (fun i ->
     //let outputPixels = Array.map (fun i ->
                             let mutable x = 0
-                            let y = Math.DivRem(i, width, &x)
-                            pw.Invoke(x, y) |> findMedian |> makeRgb24
-                        ) [|0..intensities.Length-1|]
+                            let y = Math.DivRem(i, globals.width, &x)
+                            let coord = (x, y)
+                            pw coord |> findMedian |> makeRgb24
+                        ) [|0..globals.intensities.Length-1|]
 
-    Image.LoadPixelData(outputPixels, width, height)
+    Image.LoadPixelData(outputPixels, globals.width, globals.height)
 
 [<EntryPoint>]
 let main argv =
@@ -61,9 +74,18 @@ let main argv =
 
     Configuration.Default.MemoryAllocator <- ArrayPoolMemoryAllocator.CreateWithModeratePooling()
 
-    use img: Image<Rgb24> = Image.Load(@"..\..\Images\Inputs\" + filename)
+    //use img: Image<Rgb24> = Image.Load(@"..\..\Images\Inputs\" + filename)
+    use img: Image<Rgb24> = Image.Load(@"D:\Users\jcoo092\Writing\2018\IVCNZ18\Images\Inputs\" + filename)
     img.Mutate(fun x -> x.Grayscale() |> ignore)
-    let mutable out_img = null
+    let mutable outImg = null
+
+    let globals = {
+        width = img.Width
+        height = img.Height
+        windowSize = windowSize
+        offset = (windowSize - 1) >>> 1 // divide by 2
+        intensities = Array.zeroCreate 5
+    }
 
     for _ in 0..numIterations do
 
@@ -71,17 +93,18 @@ let main argv =
 
         let inputPixels = img.GetPixelSpan().ToArray() |> Array.Parallel.map (fun p -> p.R)
 
-        out_img <- medianFilter inputPixels img.Width img.Height windowSize
+        outImg <- medianFilter {globals with intensities = inputPixels}
 
         timer.Stop()
 
-    use out_file = new System.IO.FileStream(@"..\..\Images\Outputs\naive_" + System.IO.Path.GetFileNameWithoutExtension(filename) +
-                    "_" + string windowSize +  ".png", FileMode.OpenOrCreate)
+    //use out_file = new System.IO.FileStream(@"..\..\Images\Outputs\naive_" + System.IO.Path.GetFileNameWithoutExtension(filename) +
+    use outFile = new System.IO.FileStream(@"D:\Users\jcoo092\Writing\2018\IVCNZ18\Images\Outputs\naive_" + System.IO.Path.GetFileNameWithoutExtension(filename) +
+                    "_" + string globals.windowSize +  ".png", FileMode.OpenOrCreate)
 
     let pngenc = PngEncoder()
-    pngenc.ColorType <- PngColorType.Rgb
+    pngenc.ColorType <- PngColorType.Grayscale
 
-    out_img.Save(out_file, pngenc)
+    outImg.Save(outFile, pngenc)
 
     let totalTimeTaken = timer.Elapsed.TotalSeconds
     printfn "Total time was %f" totalTimeTaken
