@@ -42,7 +42,6 @@ type Globals<'a when 'a : unmanaged> = {
     finalImageArray: Gray8 []
 }
 
-//let makeRgb24 intensity = Rgb24(intensity, intensity, intensity)
 let inline makeGray8 intensity = Gray8(intensity)
 
 let inline findArrayMedian l =
@@ -111,7 +110,6 @@ let processExchange proxel = function
         proxel.neighbourhoodIntensities.[index] <- intensity
         proxel.alternatives.[index] <- Alt.never()
         proxel.takesRemaining <- proxel.takesRemaining - 1us
-        //printfn "made an exchange on proxel %d takesRemaining = %d" proxel.index proxel.takesRemaining
         proxel
 
 let inline storeValueAtEnd globals proxel =
@@ -129,7 +127,6 @@ let checkFinishedAndSetOutput globals proxel =
 
 let runProxel globals proxel =
     Job.iterateServer proxel (fun prox ->
-                                    //printfn "Started running the job for proxel %d" prox.index
                                     Alt.choosy prox.alternatives |>
                                     Alt.afterFun (processExchange prox) |>
                                     Alt.afterFun (checkFinishedAndSetOutput globals)
@@ -144,9 +141,6 @@ let medianFilter globals =
     let proxels = Array.Parallel.init globals.pixelCount proxelMaker
     globals.proxels <- proxels
     Array.Parallel.iter (setProxelAlternatives globals) globals.proxels
-    //Array.Parallel.iter (runProxel globals) globals.proxels
-
-    printfn "%A" globals.proxels.[0].alternatives
 
     Hopac.Extensions.Array.iterJob (runProxel globals) globals.proxels |> run
     job {do! (Latch.await globals.barrier)} |> run
