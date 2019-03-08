@@ -76,6 +76,14 @@ let determineNeighbours globals index =
     neighbours
 
 
+// TODO:  Check if this would work better using System.Buffers.ArrayPool
+// TODO:  Check also how they implement the clearing in ArrayPool - might be illustrative
+let setProxelAlternatives globals proxel =
+    let takes = Seq.init (Array.length proxel.neighbourhood) (take globals proxel)
+    let alternatives = Seq.append takes (Seq.singleton (give proxel))
+    for (i, alt) in Seq.zip (seq {0 .. (Array.length proxel.neighbourhood) - 1}) alternatives do
+        proxel.alternatives.[i] <- alt
+
 let makeProxel globals index =
     let neighbourhood = determineNeighbours globals index
     let proxelsIntensity = globals.intensities.[index]
@@ -85,23 +93,23 @@ let makeProxel globals index =
         neighbourhood = neighbourhood
         chan = Ch ()
         neighbourhoodIntensities = Array.zeroCreate (Array.length neighbourhood)
-        alternatives = null
+        alternatives = Array.zeroCreate (Array.length neighbourhood)
         takesRemaining = Array.length neighbourhood |> uint16
     }
     proxel.neighbourhoodIntensities.[((Array.length neighbourhood) - 1)] <- proxelsIntensity
-    let takes = Seq.init (Array.length neighbourhood) (take globals proxel)
-    let alternatives = Seq.append takes (Seq.singleton (give proxel)) |> Seq.toArray
     // Currently the implementation relies on the give being at the end of the array
     // As this way the neighbourIndex returned from a take corresponds directly to the same position in the alternatives list
-    {proxel with alternatives = alternatives}
+    //{proxel with alternatives = alternatives}
+    proxel
 
-let processExchange prox = function
-    | Give -> prox
+let processExchange proxel = function
+    | Give -> proxel
     | Take(struct (intensity, index)) ->
-            prox.neighbourhoodIntensities.[index] <- intensity
-            prox.alternatives.[index] <- Alt.never()
-            prox.takesRemaining <- prox.takesRemaining - 1us
-            prox
+            proxel.neighbourhoodIntensities.[index] <- intensity
+            proxel.alternatives.[index] <- Alt.never()
+            proxel.takesRemaining <- proxel.takesRemaining - 1us
+            printfn "made an exchange on proxel %d takesRemaining = %d" proxel.index proxel.takesRemaining
+            proxel
 
 let inline storeValueAtEnd globals proxel =
     let finalValue = findArrayMedian proxel.neighbourhoodIntensities |> makeGray8
@@ -131,6 +139,7 @@ let medianFilter globals =
 
     let proxels = Array.Parallel.init globals.pixelCount proxelMaker
     globals.proxels <- proxels
+    Array.Parallel.iter (setProxelAlternatives globals) globals.proxels
 
     Hopac.Extensions.Array.iterJob (runProxel globals) proxels |> run
     job {do! (Latch.await globals.barrier)} |> run
