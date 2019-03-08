@@ -65,13 +65,15 @@ let determineNeighbours globals index =
     let lvb = max 0 (y - globals.offset) // Lower vertical bound
     let uvb = min (globals.height - 1) (y + globals.offset) // Upper vertical bound
 
-    let neighbours = Array.zeroCreate ((uhb - lhb + 1) * (uvb - lvb + 1))
+    let neighbours = Array.zeroCreate ((uhb - lhb + 1) * (uvb - lvb + 1) - 1)
     let mutable idx = 0
 
     for w in lvb..uvb do
         for z in lhb..uhb do
-            neighbours.[idx] <- z + globals.width * w
-            idx <- idx + 1
+            let neighbourIndex = z + globals.width * w
+            if neighbourIndex <> index then
+                neighbours.[idx] <- neighbourIndex
+                idx <- idx + 1
 
     neighbours
 
@@ -80,8 +82,9 @@ let determineNeighbours globals index =
 // TODO:  Check also how they implement the clearing in ArrayPool - might be illustrative
 let setProxelAlternatives globals proxel =
     let takes = Seq.init (Array.length proxel.neighbourhood) (take globals proxel)
-    let alternatives = Seq.append takes (Seq.singleton (give proxel))
-    for (i, alt) in Seq.zip (seq {0 .. (Array.length proxel.neighbourhood) - 1}) alternatives do
+    let giveAlt = give proxel
+    let alternatives = Seq.append takes (Seq.singleton giveAlt)
+    for (i, alt) in (Seq.zip (seq {0 .. (Array.length proxel.neighbourhood)}) alternatives) do
         proxel.alternatives.[i] <- alt
 
 let makeProxel globals index =
@@ -92,11 +95,11 @@ let makeProxel globals index =
         index = index
         neighbourhood = neighbourhood
         chan = Ch ()
-        neighbourhoodIntensities = Array.zeroCreate (Array.length neighbourhood)
-        alternatives = Array.zeroCreate (Array.length neighbourhood)
+        neighbourhoodIntensities = Array.zeroCreate ((Array.length neighbourhood) + 1)
+        alternatives = Array.zeroCreate ((Array.length neighbourhood) + 1)
         takesRemaining = Array.length neighbourhood |> uint16
     }
-    proxel.neighbourhoodIntensities.[((Array.length neighbourhood) - 1)] <- proxelsIntensity
+    proxel.neighbourhoodIntensities.[(Array.length neighbourhood)] <- proxelsIntensity
     // Currently the implementation relies on the give being at the end of the array
     // As this way the neighbourIndex returned from a take corresponds directly to the same position in the alternatives list
     //{proxel with alternatives = alternatives}
@@ -105,11 +108,11 @@ let makeProxel globals index =
 let processExchange proxel = function
     | Give -> proxel
     | Take(struct (intensity, index)) ->
-            proxel.neighbourhoodIntensities.[index] <- intensity
-            proxel.alternatives.[index] <- Alt.never()
-            proxel.takesRemaining <- proxel.takesRemaining - 1us
-            printfn "made an exchange on proxel %d takesRemaining = %d" proxel.index proxel.takesRemaining
-            proxel
+        proxel.neighbourhoodIntensities.[index] <- intensity
+        proxel.alternatives.[index] <- Alt.never()
+        proxel.takesRemaining <- proxel.takesRemaining - 1us
+        //printfn "made an exchange on proxel %d takesRemaining = %d" proxel.index proxel.takesRemaining
+        proxel
 
 let inline storeValueAtEnd globals proxel =
     let finalValue = findArrayMedian proxel.neighbourhoodIntensities |> makeGray8
@@ -126,7 +129,8 @@ let checkFinishedAndSetOutput globals proxel =
 
 let runProxel globals proxel =
     Job.iterateServer proxel (fun prox ->
-                                    Alt.choosy proxel.alternatives |>
+                                    //printfn "Started running the job for proxel %d" prox.index
+                                    Alt.choosy prox.alternatives |>
                                     Alt.afterFun (processExchange prox) |>
                                     Alt.afterFun (checkFinishedAndSetOutput globals)
     )
@@ -140,8 +144,11 @@ let medianFilter globals =
     let proxels = Array.Parallel.init globals.pixelCount proxelMaker
     globals.proxels <- proxels
     Array.Parallel.iter (setProxelAlternatives globals) globals.proxels
+    //Array.Parallel.iter (runProxel globals) globals.proxels
 
-    Hopac.Extensions.Array.iterJob (runProxel globals) proxels |> run
+    printfn "%A" globals.proxels.[0].alternatives
+
+    Hopac.Extensions.Array.iterJob (runProxel globals) globals.proxels |> run
     job {do! (Latch.await globals.barrier)} |> run
 
     makeImage globals
