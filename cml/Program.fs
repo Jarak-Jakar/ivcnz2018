@@ -16,6 +16,8 @@ type Exchange<'a when 'a : unmanaged> =
     | Give
     | Take of System.ValueTuple<'a, int>
 
+let neverAlt = lazy (Alt.never ())
+
 //[<Struct>]
 type Proxel<'a when 'a : unmanaged> = { // "proxel" is derived as a combination of picture element (pixel) and processing element
 // Only intensity and neighbourhoodIntensities should really need refreshing after the proxel has been created
@@ -40,6 +42,7 @@ type Globals<'a when 'a : unmanaged> = {
     offset: int
     barrier: Latch
     finalImageArray: Gray8 []
+    //neverAlt: Alt<'a>
 }
 
 let inline makeGray8 intensity = Gray8(intensity)
@@ -108,7 +111,8 @@ let processExchange proxel = function
     | Give -> proxel
     | Take(struct (intensity, index)) ->
         proxel.neighbourhoodIntensities.[index] <- intensity
-        proxel.alternatives.[index] <- Alt.never()
+        //proxel.alternatives.[index] <- Alt.never()
+        proxel.alternatives.[index] <- neverAlt.Value
         proxel.takesRemaining <- proxel.takesRemaining - 1us
         proxel
 
@@ -170,6 +174,7 @@ let main argv =
         offset = offset
         barrier = Hopac.Latch(img.Width * img.Height)
         finalImageArray = Array.zeroCreate (img.Width * img.Height)
+        //neverAlt = Alt.never ()
     }
 
     let mutable outImg = new Image<Gray8>(img.Width, img.Height)
